@@ -33,11 +33,6 @@ dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
 - `RiskConfirmation` 风险确认：勾选"我已了解后果"后确认可用
 - 删除链路：会话目录 + 投影缓存 + 工作区记账（经活动 storageDomain，内存/磁盘一致）
 - `workbench_session_delete` 工具：agent 可直接删除会话
-
-## 后续开发计划
-
-- 添加更多针对会话的操作工具和选项
-- 将已有的针对会话的选项做成工具提供给agent
 - 
 <img width="1800" height="1020" alt="image" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -90,12 +85,7 @@ Restart the profile to apply.
 - `RiskConfirmation` risk-consent dialog: confirm is only enabled after ticking "I understand the consequences"
 - Delete chain: session log + projection cache + workspace accounting (through the active storageDomain, so in-memory state and on-disk units stay consistent)
 - `workbench_session_delete` tool: agents can delete sessions directly
-
-## Roadmap
-
-- Add more session-operation tools and options
-- Expose the existing session options to agents as tools
-
+- 
 ## Changelog
 
 - **v0.4.0 (2026-09-29)**: Adapted to DSH 0.2.x.
