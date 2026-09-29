@@ -1,7 +1,7 @@
 {
   "name": "@huanlin/dsh-plugin-session-delete",
-  "version": "0.3.1",
-  "description": "Delete sessions of a DeepSeek Harness profile from the UI: header danger button + session-row menu item with a risk-consent dialog; host endpoint + tool delete the log, projection cache and workspace accounting. Works in web and the desktop client alike.",
+  "version": "0.4.0",
+  "description": "Delete sessions of a DeepSeek Harness profile from the UI: header danger button + session-row menu item with a risk-consent dialog; host endpoint + tool delete the log, projection cache and workspace accounting. Built for DSH 0.2.x (web and the desktop client alike).",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
@@ -10,7 +10,7 @@
   "keywords": ["dsh-plugin"],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lsz-asd/dsh-plugin-session-delete.git"
+    "url": "git+https://github.com/SUKJG1052/DSH-Plugin-Session-Delete.git"
   },
   "files": [
     "src/",
@@ -26,17 +26,21 @@
     "./package.json": "./package.json"
   },
   "dsh": {
+    "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-client-runtime"
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-workspace"
       ],
       "platform": "web"
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-tools": "^0.2.0-rc.1"
   }
 }

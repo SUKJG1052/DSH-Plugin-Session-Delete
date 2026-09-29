@@ -2,7 +2,8 @@
 //
 // One shared delete dialog for every entry point:
 //   - header danger button  (conversation.session.header.actions, order 30)
-//   - sidebar session-row "..." menu item (DOM injection, title-matched)
+//   - sidebar session-row "..." menu item
+//     (sidebar.workspaces.session.menu.item, order 500)
 // The dialog is a root-scoped shell.overlay occupant that listens for a
 // window 'chameleon:delete-session' event carrying {sessionId, title,
 // running}; both entry points dispatch it, so the sidebar item NEVER
@@ -10,10 +11,17 @@
 // running warning; deleting a running session stops it on the host first
 // (agent.cancel + quiescence) — the delete itself is always allowed.
 //
+// DSH 0.2.x adaptation: ui-workspace now declares the row menu as a real slot
+// (0.1.x had none, so this half used a MutationObserver over [class*=sessionRow]
+// menus). The slot hands every entry the row's {sessionId, displayTitle} plus a
+// `useMenuOpenState` hook, so the sidebar item resolves its target by id
+// instead of by title matching and no DOM scraping remains.
+//
 // Locale: all copy lives in the zh/en dictionaries below and follows the
-// client's active language through the `locale` service (t seat for slot
-// components, `locale/change` refresh for the DOM-injected menu item).
-// Without the service, a browser-language sniff selects the dictionary.
+// client's active language through the `locale` service (the `t` seat on both
+// registered components, `useLocaleRevision()` to re-render when the locale
+// service arrives late). Without the service, a browser-language sniff
+// selects the dictionary.
 //
 // Bundle format (client-modules protocol): classic script registering a
 // factory via window.__ModuleLoader__.load({ id, factory }); the factory
@@ -24,10 +32,23 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require('react')
     const { useCallback, useEffect, useState } = React
-    const { IconTrashOutline16, Modal } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const primitives = require('@deepseek-ai/dsh-client-ui-primitives')
+    const { MenuItemButton, Modal } = primitives
+    // DSH 0.2.x renamed the icon set: the 16-suffixed names were replaced by
+    // Regular/Medium stroke variants (IconTrashOutline16 -> IconTrashOutlineRegular).
+    // Resolve lazily with a fallback chain so the bundle keeps rendering on either
+    // generation instead of throwing on an undefined component.
+    const TrashIcon = primitives.IconTrashOutlineRegular
+      || primitives.IconTrashOutlineMedium
+      || primitives.IconTrashOutline16
 
     const SLOT = 'conversation.session.header.actions'
     const ROW_ID = 'session-delete'
+    const SIDEBAR_MENU_SLOT = 'sidebar.workspaces.session.menu.item'
+    const SIDEBAR_MENU_ID = 'session-delete:sidebar-menu-item'
+    // ui-workspace ships pin(100)/rename(200)/fork(300)/archive(400); 500 keeps
+    // the delete row last, below the shipped group.
+    const SIDEBAR_MENU_ORDER = 500
     const OVERLAY_SLOT = 'shell.overlay'
     const DIALOG_ID = 'session-delete-dialog'
     const EVENT = 'chameleon:delete-session'
@@ -440,95 +461,55 @@ window.__ModuleLoader__.load({
         'aria-label': t('button.title'),
         style: btnStyle,
         onClick: openDialog,
-      }, React.createElement(IconTrashOutline16, { size: 16 }))
+      }, React.createElement(TrashIcon, { size: 16 }))
     }
 
-    // --- sidebar session-row menu injection ------------------------------------
-    // rc.6's session-row "..." menu (rename/fork/archive) is hard-coded in
-    // ui-workspace with no extension slot, so the delete item is injected at
-    // the DOM level. Clicking it matches the row title against the host
-    // session list and opens the shared dialog WITHOUT switching sessions.
-    // This module is composed into both the desktop client and web.
+    // --- sidebar session-row "..." menu item -----------------------------------
+    // DSH 0.2.x declares the session row's "..." menu as the
+    // `sidebar.workspaces.session.menu.item` list slot (0.1.x had no extension
+    // point, which is why this half used to scrape the DOM), so the delete row
+    // is now an ordinary entry: the slot hands it the row's
+    // {sessionId, displayTitle} plus the `useMenuOpenState` hook that dismisses
+    // the menu. Order 500 keeps it below the shipped group
+    // (pin 100 / rename 200 / fork 300 / archive 400), and the host's
+    // MenuItemButton supplies the row styling and destructive colors.
 
-    var TRASH_PATH = 'M14.4782 4.84067L14.2138 10.1152C14.1102 12.1872 14.067 13.0115 13.3866 13.9607C13.1044 14.3546 12.7498 14.6912 12.3424 14.9535C11.8239 15.2872 11.2415 15.4316 10.5585 15.4998C9.88727 15.5668 9.04946 15.5656 7.99998 15.5656C6.95051 15.5656 6.1127 15.5668 5.44142 15.4998C4.75851 15.4316 4.17602 15.2872 3.65753 14.9535C3.25012 14.6912 2.89559 14.3546 2.61332 13.9607C1.93296 13.0115 1.88979 12.1872 1.78619 10.1152L1.52179 4.84067L2.89006 4.77277L3.15343 10.0463C3.26221 12.2218 3.32452 12.6015 3.72646 13.1624C3.90825 13.4161 4.13686 13.6334 4.39927 13.8023C4.66204 13.9714 5.00263 14.0792 5.57825 14.1367C6.16562 14.1953 6.92298 14.1963 7.99998 14.1963C9.07699 14.1963 9.83434 14.1953 10.4217 14.1367C10.9973 14.0792 11.3379 13.9714 11.6007 13.8023C11.8631 13.6334 12.0917 13.4161 12.2735 13.1624C12.6755 12.6015 12.7378 12.2218 12.8465 10.0463L13.1099 4.77277L14.4782 4.84067ZM5.43011 6.22849H6.7994V11.3909H5.43011V6.22849ZM9.20056 6.22849H10.5699V11.3909H9.20056V6.22849ZM8.53597 0.434431C9.17976 0.434431 9.6522 0.426926 10.0966 0.571258C10.2357 0.616451 10.3717 0.672554 10.502 0.738948C10.9182 0.951107 11.2464 1.29099 11.7015 1.74612L12.4978 2.54136H15.3742V3.91169H0.625732V2.54136H3.50218L4.29845 1.74612C4.75358 1.29099 5.08174 0.951107 5.49801 0.738948C5.62831 0.672554 5.76425 0.616451 5.90334 0.571258C6.34776 0.426926 6.82021 0.434431 7.46399 0.434431H8.53597ZM7.46399 1.80476C6.73208 1.80476 6.51641 1.81187 6.32617 1.87369C6.25545 1.89667 6.18668 1.92533 6.12041 1.95907C5.96398 2.03878 5.82348 2.16253 5.44142 2.54136H10.5585C10.1765 2.16253 10.036 2.03878 9.87955 1.95907C9.81329 1.92533 9.74452 1.89667 9.6738 1.87369C9.48356 1.81187 9.26789 1.80476 8.53597 1.80476H7.46399Z'
+    // One row of the sidebar session-row "..." menu. The slot gives the entry
+    // the row's sessionId directly (no title matching, no host round-trip) and
+    // the hook that closes the menu; the dialog then opens over the current
+    // view without switching the conversation.
+    function SidebarDeleteMenuItem(props) {
+      const t = (props && props.t) || __t
+      useLocaleRevision()
+      const sessionId = props && props.sessionId ? props.sessionId : null
+      const title = props && props.displayTitle ? props.displayTitle : null
+      // Supplied by the slot's hookContext; absent when a composition declares
+      // the slot without the menu-open hook.
+      const useMenuOpenState = props && typeof props.useMenuOpenState === 'function' ? props.useMenuOpenState : null
+      const menuState = useMenuOpenState ? useMenuOpenState() : null
+      const setMenuOpen = menuState && typeof menuState[1] === 'function' ? menuState[1] : null
 
-    // Dispatch the row's title to the shared dialog; the dialog resolves the
-    // session id from the client's list store (same data the sidebar shows).
-    // Never switches the active conversation and needs no host round-trip.
-    function openDeleteFlow(row) {
-      if (!row) return
-      var titleEl = row.querySelector('[class*=title]')
-      var title = titleEl ? String(titleEl.innerText || '').trim() : ''
-      if (!title) return
-      window.dispatchEvent(new CustomEvent(EVENT, { detail: { title } }))
-    }
+      const onSelect = useCallback(() => {
+        if (setMenuOpen) setMenuOpen(false)
+        window.dispatchEvent(new CustomEvent(EVENT, {
+          detail: { sessionId, title, running: false },
+        }))
+      }, [sessionId, title, setMenuOpen])
 
-    function ensureSidebarDeleteItem() {
-      var menu = document.querySelector('[role=menu]')
-      if (!menu) return
-      if (menu.querySelector('[data-chameleon-delete]')) return
-      var row = findOpenSessionRow()
-      if (!row) return // not a session-row menu
-      var item = document.createElement('button')
-      item.type = 'button'
-      item.setAttribute('role', 'menuitem')
-      item.setAttribute('data-chameleon-delete', '1')
-      item.style.cssText = [
-        'display:flex', 'align-items:center', 'gap:8px', 'width:100%',
-        'padding:6px 12px', 'border:none', 'background:transparent',
-        'color:var(--dsw-alias-state-error-primary,#e5484d)',
-        'font:inherit', 'font-size:13px', 'line-height:20px',
-        'text-align:left', 'border-radius:6px', 'cursor:pointer',
-      ].join(';')
-      item.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex:none"><path d="' + TRASH_PATH + '" fill="currentColor"/></svg><span></span>'
-      item.querySelector('span').textContent = __t('menu.delete')
-      item.addEventListener('mouseenter', function () {
-        item.style.background = 'var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.14))'
-      })
-      item.addEventListener('mouseleave', function () {
-        item.style.background = 'transparent'
-      })
-      item.addEventListener('click', function () { openDeleteFlow(row) })
-      var sep = document.createElement('div')
-      sep.style.cssText = 'height:1px;margin:4px 8px;background:var(--dsw-alias-border-l1,rgba(128,128,128,.2))'
-      menu.appendChild(sep)
-      menu.appendChild(item)
-    }
-
-    function findOpenSessionRow() {
-      var rows = document.querySelectorAll('[class*=sessionRow]')
-      for (var i = 0; i < rows.length; i++) {
-        if (String(rows[i].className || '').indexOf('menuOpen') >= 0) return rows[i]
-      }
-      return null
-    }
-
-    // Keep an already-open sidebar menu's label in the active language when
-    // the locale switches (fresh menus already read `__t` at creation time).
-    function refreshSidebarDeleteLabel() {
-      const items = document.querySelectorAll('[data-chameleon-delete]')
-      for (let i = 0; i < items.length; i++) {
-        const span = items[i].querySelector('span')
-        if (span) span.textContent = __t('menu.delete')
-      }
-    }
-
-    function installSidebarDelete() {
-      if (window.__chameleonSidebarDeleteInstalled) return
-      window.__chameleonSidebarDeleteInstalled = true
-      try { ensureSidebarDeleteItem() } catch (e) { /* never crash the UI */ }
-      var observer = new MutationObserver(function () {
-        try { ensureSidebarDeleteItem() } catch (e) { /* never crash the UI */ }
-      })
-      observer.observe(document.body, { childList: true, subtree: true })
+      return React.createElement(MenuItemButton, {
+        icon: React.createElement(TrashIcon, { size: 16 }),
+        danger: true,
+        separatorBefore: true,
+        onSelect,
+      }, t('menu.delete'))
     }
 
     // --- apply ------------------------------------------------------------------
 
     // Adopt the client locale service: register our zh/en dictionaries (the
-    // lookup chain falls back to zh, so a missing en entry still renders) and
-    // refresh any DOM-injected copy. Disposal of the dictionary registration
-    // rides the plugin fiber through ctx.effect.
+    // lookup chain falls back to zh, so a missing en entry still renders).
+    // Disposal of the dictionary registration rides the plugin fiber through
+    // ctx.effect.
     function adoptLocale(locale, ctx) {
       if (!locale) return
       __locale = locale
@@ -556,10 +537,8 @@ window.__ModuleLoader__.load({
       if (!__locale) {
         ctx.inject(['locale'], (sub) => {
           adoptLocale(sub.locale, ctx)
-          refreshSidebarDeleteLabel()
         })
       }
-      ctx.on('locale/change', refreshSidebarDeleteLabel)
       // `locale: NS` gives the registered components the `t` seat (the
       // renderer re-derives it on every locale switch); without the service
       // the components fall back to `__t` + useLocaleRevision().
@@ -575,7 +554,15 @@ window.__ModuleLoader__.load({
         order: 100,
         ...(__locale ? { locale: NS } : {}),
       }, DeleteSessionDialog))
-      installSidebarDelete()
+      // The sidebar session-row "..." menu's delete row. ui-workspace declares
+      // this slot from 0.2.x on; on a runtime without the declaration the
+      // inject simply never fires and the other entry points keep working.
+      ctx.slots.inject(SIDEBAR_MENU_SLOT, () => ctx.slots.register({
+        name: SIDEBAR_MENU_SLOT,
+        id: SIDEBAR_MENU_ID,
+        order: SIDEBAR_MENU_ORDER,
+        ...(__locale ? { locale: NS } : {}),
+      }, SidebarDeleteMenuItem))
     }
 
     // The loader gates apply() until the declared services exist.
