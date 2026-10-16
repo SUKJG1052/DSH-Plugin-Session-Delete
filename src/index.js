@@ -323,6 +323,30 @@ function readBody(req) {
   })
 }
 
+// --- request fence ------------------------------------------------------------
+// These routes are registered on the webServer carrier, which — unlike the Host
+// Connection carrier that serves /api — applies no browser fence and no session
+// cookie check: whatever can reach the port can call them.  The app's own page
+// is same-origin, so refuse exactly the markers a foreign page cannot forge,
+// using the same rules the Connection fence applies to /api:
+//   * `Sec-Fetch-Site: cross-site`, which browsers attach to cross-site calls;
+//   * an `Origin` whose authority is not this request's own `Host`.
+// Non-browser callers (the CLI, curl, in-process tools) send neither header and
+// stay allowed, so nothing inside the app is affected.  A page on another site
+// can no longer delete sessions; a local process still can (see README caveats).
+function isForeignBrowserRequest(req) {
+  const site = req.headers['sec-fetch-site']
+  if (typeof site === 'string' && site.toLowerCase() === 'cross-site') return true
+  const origin = req.headers.origin
+  if (typeof origin !== 'string' || origin === '') return false
+  try {
+    return new URL(origin).host !== String(req.headers.host || '')
+  } catch {
+    // `Origin: null` (opaque origin) is never this app's own page.
+    return true
+  }
+}
+
 // --- plugin -------------------------------------------------------------------
 // webServer is OPTIONAL (a terminal-only profile has no web surface): the
 // HTTP endpoint registers when the service exists or appears later
@@ -335,6 +359,10 @@ function apply(ctx) {
       kind: 'exact',
       path: '/__chameleon/session/list',
       handler: async (req, res) => {
+        if (isForeignBrowserRequest(req)) {
+          sendJson(res, 403, { error: 'cross-origin request refused' })
+          return
+        }
         if (req.method !== 'GET') {
           sendJson(res, 405, { error: 'method not allowed' })
           return
@@ -351,6 +379,10 @@ function apply(ctx) {
       kind: 'exact',
       path: '/__chameleon/session/delete',
       handler: async (req, res) => {
+        if (isForeignBrowserRequest(req)) {
+          sendJson(res, 403, { error: 'cross-origin request refused' })
+          return
+        }
         if (req.method !== 'POST') {
           sendJson(res, 405, { error: 'method not allowed' })
           return
