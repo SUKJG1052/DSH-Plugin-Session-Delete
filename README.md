@@ -25,22 +25,13 @@
 
 ## 安装
 
-插件只发布在 GitHub 上（没有发布到 npm）。**不需要 clone 到本地，也不要填本地路径** —— 用仓库的 tarball 直链安装，任何人复制粘贴即可。
+插件只发布在 GitHub 上（没有发布到 npm），装法和其他 GitHub 插件一样 —— 一行命令，不用 clone 到本地，也不用填本地路径。
 
-下面 URL 里的 `v0.4.1` 是版本号，`<profile>` 是你的 profile 名：Web 端是 `web`，桌面端是 `desktop`。
-
-```
-https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.1
-```
-
-**方式一：在界面里装（推荐）**
-
-侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴上面那一行 →「安装」→ 重启 DSH。
-
-**方式二：命令行**
+`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v0.4.2` 是要装的版本。
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.1
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2
+dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 chameleon-session-delete
 ```
 
 - 桌面端没有全局 `dsh` 命令，用应用自带的那一个：安装目录下的 `resources\runtime\cli\bin\dsh.cmd`（macOS / Linux 为 `resources/runtime/cli/bin/dsh`），参数完全一样。
@@ -48,21 +39,23 @@ dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plu
 - 命令必须带 `--profile`；漏了 CLI 会直接报 `required option '--profile <name>' not specified`。
 - 装完重启 profile 生效（开启 HMR 的 profile 会即时生效）。
 
-**想始终装最新代码**，把 URL 末尾换成 `refs/heads/main`：
+**装不上，或者机器上没有 git？** `github:` 形式由本机 `git` 拉取仓库，需要机器上有 git、且能连上 github.com。改用压缩包直链就不需要 git —— pnpm 直接下载，同时也跳过 DSH 对 GitHub 的连通性预检：
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/heads/main
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.2
 ```
 
-**升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行用新版本的直链再 `add` 一次即可 —— 包名不变，pnpm 会替换成新版本。
+**想装默认分支上的最新代码**：`github:` 形式把 `#v0.4.2` 换成 `#main`（或整个去掉），直链把 `refs/tags/v0.4.2` 换成 `refs/heads/main`。
+
+**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`（或上面那条直链）→「安装」→ 重启 DSH。
+
+**升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 包名不变，pnpm 会替换成新版本。
 
 **卸载**
 
 ```sh
 dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
 ```
-
-**为什么用 codeload 直链，而不是 `github:` 简写？** 填 `github:SUKJG1052/DSH-Plugin-Session-Delete` 或 `https://github.com/SUKJG1052/DSH-Plugin-Session-Delete` 时，DSH 会先对 GitHub 做一次 `git ls-remote` 连通性检查，网络不通就会停在「连接 GitHub 超时」；`.tar.gz` 直链属于压缩包安装，跳过这一步。仓库是公开的，直链不需要任何凭据或账号。
 
 ## 使用
 
@@ -111,8 +104,9 @@ Client 半边（`src/client.js`）走 DSH 的声明式槽位，不做 DOM 注入
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| 「连接 GitHub 超时」/「无法访问 GitHub」 | 填的是 GitHub 仓库地址，DSH 的连通性检查没通过。改用上面的 codeload `.tar.gz` 直链。 |
-| 「该插件已安装。如需升级，请卸载后重新安装」 | 界面里先卸载再装新版；命令行直接 `add` 新版本直链即可。 |
+| 「连接 GitHub 超时」/「无法访问 GitHub」 | DSH 对 GitHub 的连通性预检没过。改用 codeload `.tar.gz` 直链（跳过该检查）。 |
+| `github:` 形式报 git 相关错误（如 `getRepoRefs` 失败） | 机器上没有 git，或 git 不在 PATH 上。装上 git，或改用压缩包直链。 |
+| 「该插件已安装。如需升级，请卸载后重新安装」 | 界面里先卸载再装新版；命令行把版本号换成新版再 `add` 一次即可。 |
 | 「这个包没有声明组合包，无法作为插件安装」 | 装错包了 —— 本插件的包名是 `@huanlin/dsh-plugin-session-delete`。 |
 | 桌面端 `dsh plugin --profile desktop` 报 profile 未初始化 | 先启动一次桌面端把 profile 建出来，再完全退出应用重试。 |
 | 装完界面里没有变化 | 重启 DSH（对话框会提示「已安装，下次启动后加载」）。 |
@@ -145,6 +139,10 @@ dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
 
 ## 更新日志
 
+- **v0.4.2（2026-10-16）**：安装命令改成和其他插件一致的 `github:` 简写。
+  - 主推 `dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`，并紧跟一行 `dsh --profile <profile> --dump-config` 自检（确认配置树里出现 `chameleon-session-delete`）。
+  - codeload 直链降级成替代方案，并写明适用场景：本机没有 git、或连不上 github.com 时用它 —— `github:` 形式由本机 git 拉取仓库，机器上必须有 git；直链由 pnpm 直接下载，既不需要 git，也跳过 DSH 对 GitHub 的连通性预检。
+  - 仅文档变更，代码与 v0.4.1 相同。
 - **v0.4.1（2026-10-16）**：安装说明重写 + 端点加跨站围栏。
   - 安装章节改成任何人都能照抄的形式：把混在安装步骤里的 `file:C:/path/to/...` 挪到「本地开发」并注明它只适合本人调试，正文只保留「界面里添加插件」和「命令行 `dsh plugin add <tarball 直链>`」两种真正可用的方式，补上固定 tag / main 分支两种直链、升级与卸载步骤、桌面端自带 CLI 的路径与注意事项，以及常见报错对照表。
   - 新增跨站请求围栏：`/__chameleon/session/list` 与 `/__chameleon/session/delete` 注册在 `webServer` 上，而这一层不做浏览器鉴权（DSH 只在 `/api` 的 Host Connection 通道上做 Host/Origin 检查与 Cookie 校验），此前任何能访问到该端口的人都能调用删除接口。现在 `Sec-Fetch-Site: cross-site`、或 `Origin` 与请求 `Host` 不同源（含 `Origin: null`）的浏览器请求一律 403；应用页面是同源请求，CLI / curl / 进程内工具不带这两个头，删除链路行为不变。

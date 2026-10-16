@@ -25,22 +25,13 @@ Built for DSH **0.2.x** (the web client and the desktop app alike).
 
 ## Installation
 
-The plugin lives on GitHub only (it is not published to npm). **No clone, no local path** — install it from the repository's tarball URL and anyone can just copy-paste the command.
+The plugin lives on GitHub only (it is not published to npm), and it installs like any other GitHub plugin — one command, no clone, no local path.
 
-`v0.4.1` below is the version and `<profile>` is your profile name: `web` for the web client, `desktop` for the desktop app.
-
-```
-https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.1
-```
-
-**Option 1 — install from the UI (recommended)**
-
-Sidebar → "Plugins" page → "Add plugin" → paste the line above into "Package name or URL" → "Install" → restart DSH.
-
-**Option 2 — command line**
+`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v0.4.2` is the version to install.
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.1
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2
+dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-delete is in the tree
 ```
 
 - The desktop app ships no global `dsh` command; use the CLI it carries, `resources\runtime\cli\bin\dsh.cmd` under the install directory (`resources/runtime/cli/bin/dsh` on macOS / Linux). The arguments are identical.
@@ -48,21 +39,23 @@ dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plu
 - The command must carry `--profile`; without it the CLI fails with `required option '--profile <name>' not specified`.
 - Restart the profile to apply (a profile with HMR enabled picks it up immediately).
 
-**To always track the latest code**, swap the tail of the URL for `refs/heads/main`:
+**Install failing, or no git on the machine?** The `github:` form clones through your local `git`, so it needs git and a reachable github.com. The tarball URL needs neither — pnpm downloads it directly and DSH's GitHub reachability pre-check is skipped:
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/heads/main
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.2
 ```
 
-**Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version's URL — the package name is unchanged, so pnpm replaces the version.
+**To install the latest code from the default branch**: with `github:` swap `#v0.4.2` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v0.4.2` for `refs/heads/main`.
+
+**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
+
+**Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version — the package name is unchanged, so pnpm replaces the version.
 
 **Uninstall**
 
 ```sh
 dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
 ```
-
-**Why the codeload URL instead of the `github:` shorthand?** With `github:SUKJG1052/DSH-Plugin-Session-Delete` or `https://github.com/SUKJG1052/DSH-Plugin-Session-Delete`, DSH first runs a `git ls-remote` reachability check against GitHub, and an unreachable GitHub stops there with "GitHub connection timed out"; the `.tar.gz` URL counts as a tarball install and skips that check. The repository is public, so the URL needs no credentials or account.
 
 ## Usage
 
@@ -111,8 +104,9 @@ At install time DSH compares the running version against that peer range and ref
 
 | Symptom | Cause and fix |
 | --- | --- |
-| "GitHub connection timed out" / "Cannot reach GitHub" | You used the repository URL and DSH's reachability check failed. Use the codeload `.tar.gz` URL above instead. |
-| "This plugin is already installed. To upgrade, uninstall and reinstall" | In the UI, uninstall then install the new version; on the CLI just `add` the new URL. |
+| "GitHub connection timed out" / "Cannot reach GitHub" | DSH's reachability pre-check failed. Use the codeload `.tar.gz` URL (it skips that check). |
+| A git-related failure with the `github:` form (e.g. `getRepoRefs`) | There is no git on the machine, or git is not on PATH. Install git, or use the tarball URL. |
+| "This plugin is already installed. To upgrade, uninstall and reinstall" | In the UI, uninstall then install the new version; on the CLI just `add` the new version again. |
 | "This package declares no bundle, so it cannot be installed as a plugin" | Wrong package — this plugin's name is `@huanlin/dsh-plugin-session-delete`. |
 | `dsh plugin --profile desktop` says the profile is not initialized | Launch the desktop app once to create the profile, quit it completely, then retry. |
 | Nothing changed in the UI after install | Restart DSH (the dialog says "installed, will load on next start"). |
@@ -145,6 +139,10 @@ To check syntax before restarting, run `node --check` on a copy with an `.mjs` e
 
 ## Changelog
 
+- **v0.4.2 (2026-10-16)**: the install command is now the `github:` shorthand every other plugin uses.
+  - Primary form: `dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`, followed by a `dsh --profile <profile> --dump-config` self-check (the `chameleon-session-delete` row must appear in the tree).
+  - The codeload tarball URL became the fallback, with its actual use case spelled out: no git on the machine, or an unreachable github.com — the `github:` form clones through your local git, while the tarball URL is downloaded by pnpm directly, needs no git and skips DSH's GitHub reachability pre-check.
+  - Documentation only; the code is identical to v0.4.1.
 - **v0.4.1 (2026-10-16)**: rewrote the installation docs and fenced the endpoints against cross-site calls.
   - The installation section is now copy-pasteable by anyone: the `file:C:/path/to/...` line moved to Development with an explicit note that it is author-only, leaving two genuinely usable routes — "Add plugin" in the UI and `dsh plugin add <tarball URL>` — plus pinned-tag and main-branch URLs, upgrade and uninstall steps, the bundled desktop CLI path and its caveats, and a troubleshooting table of the real error messages.
   - Added a cross-site request fence: the two endpoints are registered on `webServer`, a carrier that runs no browser authentication (DSH applies its Host/Origin fence and cookie check only to the `/api` Host Connection carrier), so previously anything able to reach the port could call the delete endpoint. Browser requests carrying `Sec-Fetch-Site: cross-site`, or an `Origin` whose authority differs from the request `Host` (including `Origin: null`), now get 403; the app's page is same-origin and the CLI / curl / in-process tools send neither header, so the delete chain behaves exactly as before.
