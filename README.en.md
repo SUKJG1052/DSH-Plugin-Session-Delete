@@ -65,36 +65,6 @@ dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
 - To have an agent delete one: describe which session to delete and the agent calls `workbench_session_delete` (parameter `sessionId`; both the raw `uuid` and the `session-<uuid>` form are accepted).
 - Deleting a **running** session stops its task first — work in progress is interrupted.
 
-## How it works
-
-The host half (`src/index.js`) registers two HTTP endpoints and one tool:
-
-| Endpoint / tool | Purpose |
-| --- | --- |
-| `GET /__chameleon/session/list` | Lets the client resolve session ids and titles |
-| `POST /__chameleon/session/delete` | Delete entry point used by the button and the menu item |
-| `workbench_session_delete` | Delete tool used by agents |
-
-Deletion runs in a fixed order so it cannot half-succeed:
-
-1. session running → `cancel` and wait for quiescence (time-boxed, so a stuck driver never blocks the deletion);
-2. flush the live session so dispose-time teardown has no pending writes;
-3. remove the persisted log directory (cleaning both the raw uuid and the `session-` prefixed id form);
-4. drop the projection-cache row (`session_projcache` / `sessions`);
-5. **only after the log is confirmed gone**, remove the workspace accounting (`sessionIds` arrays and `global.archivedSessionIds`).
-
-That ordering between steps 3 and 5 is what v0.3.1 fixed so a partially deleted session cannot fall out of its group.
-
-The client half (`src/client.js`) uses declared slots rather than DOM injection:
-
-| Slot | Content |
-| --- | --- |
-| `conversation.session.header.actions` | Header trash button |
-| `sidebar.workspaces.session.menu.item` | Session-row "…" menu item, handed the row's `sessionId` / `displayTitle` directly |
-| `shell.overlay` | Risk-consent dialog |
-
-Both endpoints are registered on `webServer`, and DSH's browser authentication (Host/Origin fence plus the session cookie) only covers the `/api` Host Connection carrier — so since v0.4.1 the plugin applies its own **cross-site fence** inside both handlers: a browser request that carries `Sec-Fetch-Site: cross-site`, or an `Origin` whose authority differs from the request's own `Host` (including `Origin: null`), gets 403. The app's own page is same-origin, and the CLI / curl / in-process tools send neither header, so nothing inside the app changes.
-
 ## Compatibility
 
 - **DSH 0.2.1 and later 0.2.x** (web and the desktop client; tested on `0.2.1-rc.2`): supported. v0.5.0 re-checked every interface the plugin depends on against 0.2.1 — the three slot contracts (`conversation.session.header.actions`, `sidebar.workspaces.session.menu.item`, `shell.overlay`), `ui-primitives`' `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`, the client module loading protocol (`window.__ModuleLoader__.load`) and the host services (`defineTool`, `ctx.tools.register`, `storageDomain`, `agents`, `sessions`, `webServer.register`) — and all of them are unchanged from 0.2.0.
@@ -115,32 +85,6 @@ The supported range is declared as `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) while `
 | Nothing changed in the UI after install | Restart DSH (the dialog says "installed, will load on next start"). |
 | The plugin list shows a failure / incompatible | Version mismatch — see Compatibility above. |
 
-## Caveats
-
-- Deletion is **permanent**: log, statistics and workspace accounting are all removed; there is no trash bin.
-- The desktop app and the web client share one `~/.dsh` store — run only one DSH instance at a time to avoid concurrent writes.
-- With the host half installed, agents genuinely can delete sessions (the UI button is handed to the model). If that is not wanted, skip the plugin or constrain agents through permissions.
-- The two HTTP endpoints do not go through DSH's browser authentication: cross-site browser requests are refused since v0.4.1 (403), but **other processes on the same machine can still call them**. Do not bind webServer to `0.0.0.0` on an untrusted network, and use this only where you trust the local machine.
-
-## Development
-
-A `file:` install points at a directory on your own machine, so it is **for your own debugging only** — other people cannot install from that command:
-
-```sh
-dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
-```
-
-Two source files (plus `locale/` display metadata), no build step:
-
-- `src/index.js` — the host half (ESM, named exports `apply` / `inject` / `name`).
-- `src/client.js` — the client half (a classic script registered through `window.__ModuleLoader__.load({ id, factory })`; `React.createElement` only, `--dsw-*` theme tokens for styling).
-- `cordis.patch.yml` — the bundle layer that inserts the row id `chameleon-session-delete`.
-- `locale/zh.json` / `locale/en.json` — the title and description shown in the plugins page (`meta.title` / `meta.description`); they take no part in runtime behaviour.
-
-Installed via `file:`, pnpm hardlinks the sources: editing the workspace copy updates the installed profile in place, but a git branch switch or `checkout` replaces the files and breaks the link — just run `add` again.
-
-To check syntax before restarting, run `node --check` on a copy with an `.mjs` extension (the file is ESM), then restart the profile and watch the plugin's status in the "Plugins" page.
-
 ## Changelog
 
 - **v0.5.0 (2026-10-17)**: adapted to DSH 0.2.1.
@@ -153,7 +97,7 @@ To check syntax before restarting, run `node --check` on a copy with an `.mjs` e
   - The codeload tarball URL became the fallback, with its actual use case spelled out: no git on the machine, or an unreachable github.com — the `github:` form clones through your local git, while the tarball URL is downloaded by pnpm directly, needs no git and skips DSH's GitHub reachability pre-check.
   - Documentation only; the code is identical to v0.4.1.
 - **v0.4.1 (2026-10-16)**: rewrote the installation docs and fenced the endpoints against cross-site calls.
-  - The installation section is now copy-pasteable by anyone: the `file:C:/path/to/...` line moved to Development with an explicit note that it is author-only, leaving two genuinely usable routes — "Add plugin" in the UI and `dsh plugin add <tarball URL>` — plus pinned-tag and main-branch URLs, upgrade and uninstall steps, the bundled desktop CLI path and its caveats, and a troubleshooting table of the real error messages.
+  - The installation section is now copy-pasteable by anyone: the `file:C:/path/to/...` line moved out of the install steps with an explicit note that it is author-only, leaving two genuinely usable routes — "Add plugin" in the UI and `dsh plugin add <tarball URL>` — plus pinned-tag and main-branch URLs, upgrade and uninstall steps, the bundled desktop CLI path and its caveats, and a troubleshooting table of the real error messages.
   - Added a cross-site request fence: the two endpoints are registered on `webServer`, a carrier that runs no browser authentication (DSH applies its Host/Origin fence and cookie check only to the `/api` Host Connection carrier), so previously anything able to reach the port could call the delete endpoint. Browser requests carrying `Sec-Fetch-Site: cross-site`, or an `Origin` whose authority differs from the request `Host` (including `Origin: null`), now get 403; the app's page is same-origin and the CLI / curl / in-process tools send neither header, so the delete chain behaves exactly as before.
   - The host delete chain and the client slot implementation are unchanged from v0.4.0.
 - **v0.4.0 (2026-09-29)**: Adapted to DSH 0.2.x.

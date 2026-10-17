@@ -65,36 +65,6 @@ dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
 - 想让 agent 删：直接说清楚要删哪个会话，agent 会调用 `workbench_session_delete`（参数 `sessionId`，`uuid` 与 `session-<uuid>` 两种写法都认）。
 - 删除**运行中**的会话会先停止其任务再删除，正在进行的操作会中断。
 
-## 工作原理
-
-Host 半边（`src/index.js`）注册两个 HTTP 端点与一个工具：
-
-| 端点 / 工具 | 作用 |
-| --- | --- |
-| `GET /__chameleon/session/list` | 供客户端解析会话 id 与标题 |
-| `POST /__chameleon/session/delete` | 界面按钮/菜单项调用的删除入口 |
-| `workbench_session_delete` | agent 调用的删除工具 |
-
-删除按固定顺序执行，避免删一半：
-
-1. 会话正在运行 → `cancel` 并等待其静默（有超时上限，避免卡住的驱动阻塞删除）；
-2. flush 活动会话，防止 dispose 阶段回写；
-3. 删除磁盘上的会话日志目录（同时清理原始 uuid 与 `session-` 前缀两种 id 形式）；
-4. 删除投影缓存行（`session_projcache` / `sessions`）；
-5. **确认日志已删除之后**，才解除工作区记账（`sessionIds` 数组与 `global.archivedSessionIds`）。
-
-第 3、5 步的顺序是 v0.3.1 修掉「删一半的会话掉进未分组」的关键。
-
-Client 半边（`src/client.js`）走 DSH 的声明式槽位，不做 DOM 注入：
-
-| 槽位 | 内容 |
-| --- | --- |
-| `conversation.session.header.actions` | 头部垃圾桶按钮 |
-| `sidebar.workspaces.session.menu.item` | 侧栏会话行「…」菜单项，直接拿到该行的 `sessionId` / `displayTitle` |
-| `shell.overlay` | 风险确认弹窗 |
-
-这两个端点挂在 `webServer` 上，而 DSH 的浏览器鉴权（Host/Origin 检查 + 登录 Cookie）只作用于 `/api` 的 Host Connection 通道，所以 v0.4.1 起插件在两个 handler 里自己加了一道**跨站请求围栏**：`Sec-Fetch-Site: cross-site`，或 `Origin` 与本次请求 `Host` 不同源（含 `Origin: null`）的浏览器请求一律返回 403。应用页面本身是同源请求，命令行 / curl / 进程内工具不带这两个头，都不受影响。
-
 ## 兼容性
 
 - **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.1-rc.2` 实测）：支持。v0.5.0 按 0.2.1 逐项核对过插件依赖的全部接口 —— 三个插槽的契约（`conversation.session.header.actions`、`sidebar.workspaces.session.menu.item`、`shell.overlay`）、`ui-primitives` 的 `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`、客户端模块加载协议（`window.__ModuleLoader__.load`）与 host 侧服务（`defineTool`、`ctx.tools.register`、`storageDomain`、`agents`、`sessions`、`webServer.register`），均与 0.2.0 一致。
@@ -115,32 +85,6 @@ Client 半边（`src/client.js`）走 DSH 的声明式槽位，不做 DOM 注入
 | 装完界面里没有变化 | 重启 DSH（对话框会提示「已安装，下次启动后加载」）。 |
 | 插件列表显示「异常」/ 不兼容 | 版本不匹配，见上面的「兼容性」。 |
 
-## 注意事项
-
-- 删除是**永久**的：会话日志、统计与工作区记账都会被移除，插件不提供回收站。
-- 桌面端与 Web 端共用同一份 `~/.dsh` 存储，同一时间只应运行一个 DSH 实例，避免两边并发写。
-- 装上 host 半边后，agent 就真的具备删除会话的能力了（相当于把界面上那个按钮交给了模型）。介意的话可以不装，或用权限设置约束 agent。
-- 插件的两个 HTTP 端点不走 DSH 的浏览器鉴权：跨站浏览器请求从 v0.4.1 起被拒（403），但**本机其它进程仍然可以直接调用**。别把 webServer 绑到 `0.0.0.0` 暴露给不受信任的网络，也只在信任本机环境的前提下使用。
-
-## 本地开发
-
-`file:` 安装指向的是你本机的目录，**只适合自己开发调试**，别人照抄这条命令是装不上的：
-
-```sh
-dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
-```
-
-源码只有两个文件（另有 `locale/` 展示元数据），没有构建步骤：
-
-- `src/index.js` —— host 半边（ESM，命名导出 `apply` / `inject` / `name`）。
-- `src/client.js` —— client 半边（classic script，经 `window.__ModuleLoader__.load({ id, factory })` 注册；只用 `React.createElement`，样式走 `--dsw-*` 主题变量）。
-- `cordis.patch.yml` —— bundle 层，插入行 id `chameleon-session-delete`。
-- `locale/zh.json` / `locale/en.json` —— 插件列表里显示的标题与说明（`meta.title` / `meta.description`），不参与运行逻辑。
-
-以 `file:` 方式安装时 pnpm 会做硬链接：直接改工作区里的源码，已安装的 profile 会跟着变；但用 git 切分支、`checkout` 覆盖文件后硬链接会断开，重新执行一次 `add` 即可。
-
-改完想先验证语法，可以 `node --check` 过一遍（文件是 ESM，`.js` 后缀要先复制成 `.mjs`），再重启 profile 看「插件」页里的运行状态。
-
 ## 更新日志
 
 - **v0.5.0（2026-10-17）**：适配 DSH 0.2.1。
@@ -153,7 +97,7 @@ dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
   - codeload 直链降级成替代方案，并写明适用场景：本机没有 git、或连不上 github.com 时用它 —— `github:` 形式由本机 git 拉取仓库，机器上必须有 git；直链由 pnpm 直接下载，既不需要 git，也跳过 DSH 对 GitHub 的连通性预检。
   - 仅文档变更，代码与 v0.4.1 相同。
 - **v0.4.1（2026-10-16）**：安装说明重写 + 端点加跨站围栏。
-  - 安装章节改成任何人都能照抄的形式：把混在安装步骤里的 `file:C:/path/to/...` 挪到「本地开发」并注明它只适合本人调试，正文只保留「界面里添加插件」和「命令行 `dsh plugin add <tarball 直链>`」两种真正可用的方式，补上固定 tag / main 分支两种直链、升级与卸载步骤、桌面端自带 CLI 的路径与注意事项，以及常见报错对照表。
+  - 安装章节改成任何人都能照抄的形式：把混在安装步骤里的 `file:C:/path/to/...` 移出安装章节并注明它只适合本人调试，正文只保留「界面里添加插件」和「命令行 `dsh plugin add <tarball 直链>`」两种真正可用的方式，补上固定 tag / main 分支两种直链、升级与卸载步骤、桌面端自带 CLI 的路径与注意事项，以及常见报错对照表。
   - 新增跨站请求围栏：`/__chameleon/session/list` 与 `/__chameleon/session/delete` 注册在 `webServer` 上，而这一层不做浏览器鉴权（DSH 只在 `/api` 的 Host Connection 通道上做 Host/Origin 检查与 Cookie 校验），此前任何能访问到该端口的人都能调用删除接口。现在 `Sec-Fetch-Site: cross-site`、或 `Origin` 与请求 `Host` 不同源（含 `Origin: null`）的浏览器请求一律 403；应用页面是同源请求，CLI / curl / 进程内工具不带这两个头，删除链路行为不变。
   - host 半边的删除链路、client 半边的槽位实现与 v0.4.0 相同，未改动。
 - **v0.4.0（2026-09-29）**：适配 DSH 0.2.x。
