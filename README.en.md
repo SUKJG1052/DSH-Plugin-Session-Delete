@@ -130,11 +130,12 @@ A `file:` install points at a directory on your own machine, so it is **for your
 dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
 ```
 
-Two source files, no build step:
+Two source files (plus `locale/` display metadata), no build step:
 
 - `src/index.js` — the host half (ESM, named exports `apply` / `inject` / `name`).
 - `src/client.js` — the client half (a classic script registered through `window.__ModuleLoader__.load({ id, factory })`; `React.createElement` only, `--dsw-*` theme tokens for styling).
 - `cordis.patch.yml` — the bundle layer that inserts the row id `chameleon-session-delete`.
+- `locale/zh.json` / `locale/en.json` — the title and description shown in the plugins page (`meta.title` / `meta.description`); they take no part in runtime behaviour.
 
 Installed via `file:`, pnpm hardlinks the sources: editing the workspace copy updates the installed profile in place, but a git branch switch or `checkout` replaces the files and breaks the link — just run `add` again.
 
@@ -146,7 +147,7 @@ To check syntax before restarting, run `node --check` on a copy with an `.mjs` e
   - Compatibility moved to 0.2.1's `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) — DSH 0.2.1 and later judge by it, while `peerDependencies` stays for older runtimes.
   - Added plugin display metadata: `locale/zh.json` / `locale/en.json` `meta.title` / `meta.description` make the plugins page show "Session Delete" and a one-line description instead of the bare package name; `exports` gained `./locale/*.json` and `files` now ships `locale/`.
   - `dsh.client.inject` no longer lists `@deepseek-ai/dsh-client-ui-slots`, which no longer exists in 0.2.1: ui-slots / ui-primitives now live in the web shell's shared module table, so the bundle's `require` calls still resolve.
-  - No host / client code changes. Every dependency was re-checked against 0.2.1 (slot contracts, `Modal` / `MenuItemButton` / icon exports, the client module protocol, host services) and matches; the same 18 host behaviour tests pass, and on the live instance both the session-list endpoint and the client bundle load.
+  - No host / client code changes. Every dependency was re-checked against 0.2.1 (slot contracts, `Modal` / `MenuItemButton` / icon exports, the client module protocol, host services) and matches; the same host behaviour tests pass (cross-site fence, deletion in both id spellings, 400 / 404 / 405, the agent tool), and on the live instance both the session-list endpoint and the client bundle load.
 - **v0.4.2 (2026-10-16)**: the install command is now the `github:` shorthand every other plugin uses.
   - Primary form: `dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`, followed by a `dsh --profile <profile> --dump-config` self-check (the `chameleon-session-delete` row must appear in the tree).
   - The codeload tarball URL became the fallback, with its actual use case spelled out: no git on the machine, or an unreachable github.com — the `github:` form clones through your local git, while the tarball URL is downloaded by pnpm directly, needs no git and skips DSH's GitHub reachability pre-check.

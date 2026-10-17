@@ -130,11 +130,12 @@ Client 半边（`src/client.js`）走 DSH 的声明式槽位，不做 DOM 注入
 dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
 ```
 
-源码只有两个文件，没有构建步骤：
+源码只有两个文件（另有 `locale/` 展示元数据），没有构建步骤：
 
 - `src/index.js` —— host 半边（ESM，命名导出 `apply` / `inject` / `name`）。
 - `src/client.js` —— client 半边（classic script，经 `window.__ModuleLoader__.load({ id, factory })` 注册；只用 `React.createElement`，样式走 `--dsw-*` 主题变量）。
 - `cordis.patch.yml` —— bundle 层，插入行 id `chameleon-session-delete`。
+- `locale/zh.json` / `locale/en.json` —— 插件列表里显示的标题与说明（`meta.title` / `meta.description`），不参与运行逻辑。
 
 以 `file:` 方式安装时 pnpm 会做硬链接：直接改工作区里的源码，已安装的 profile 会跟着变；但用 git 切分支、`checkout` 覆盖文件后硬链接会断开，重新执行一次 `add` 即可。
 
@@ -146,7 +147,7 @@ dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
   - 兼容声明改到 0.2.1 的 `engines.dsh`（`>=0.2.0-rc.1 <0.3.0`）：0.2.1 起 DSH 优先按它判定，同时保留 `peerDependencies` 供更早版本读取。
   - 新增插件展示元数据：`locale/zh.json` / `locale/en.json` 的 `meta.title` / `meta.description` 让插件列表显示「删除会话」与一句说明（不再是包名）；`exports` 补 `./locale/*.json`，`files` 收录 `locale/`。
   - `dsh.client.inject` 删掉 0.2.1 已不存在的 `@deepseek-ai/dsh-client-ui-slots`：ui-slots / ui-primitives 已并入 Web 外壳的共享模块表，插件里的 `require` 依旧可用。
-  - host / client 代码未改动。按 0.2.1 逐项核对（插槽契约、`Modal` / `MenuItemButton` / 图标导出、客户端模块加载协议、host 侧服务）确认一致；同一套 18 项 host 行为测试全通过，线上实例的 session 列表端点与客户端 bundle 均正常加载。
+  - host / client 代码未改动。按 0.2.1 逐项核对（插槽契约、`Modal` / `MenuItemButton` / 图标导出、客户端模块加载协议、host 侧服务）确认一致；同一套 host 行为测试全部通过（跨站围栏、两种 id 写法的删除、400 / 404 / 405、agent 工具）；线上实例的 session 列表端点与客户端 bundle 均正常加载。
 - **v0.4.2（2026-10-16）**：安装命令改成和其他插件一致的 `github:` 简写。
   - 主推 `dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`，并紧跟一行 `dsh --profile <profile> --dump-config` 自检（确认配置树里出现 `chameleon-session-delete`）。
   - codeload 直链降级成替代方案，并写明适用场景：本机没有 git、或连不上 github.com 时用它 —— `github:` 形式由本机 git 拉取仓库，机器上必须有 git；直链由 pnpm 直接下载，既不需要 git，也跳过 DSH 对 GitHub 的连通性预检。
