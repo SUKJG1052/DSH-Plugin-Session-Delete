@@ -4,7 +4,7 @@
 
 **在 DeepSeek Harness 界面里彻底删除会话。** 归档只是隐藏，损坏的会话又删不掉 —— 这个插件补上最后一步：删掉就是真的删掉。
 
-适用于 DSH **0.2.x**（Web 端与桌面端）。
+适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本按 **0.2.1-rc.2** 逐项核对验证。
 
 <img width="1800" height="1020" alt="删除会话确认弹窗" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -23,14 +23,16 @@
 
 **中英双语**：所有文案跟随界面语言（设置里的语言或浏览器语言）实时切换。
 
+**插件页展示**：插件列表里显示本地化标题「删除会话」与一句说明（`locale/zh.json` / `locale/en.json`），不再是包名。
+
 ## 安装
 
 插件只发布在 GitHub 上（没有发布到 npm），装法和其他 GitHub 插件一样 —— 一行命令，不用 clone 到本地，也不用填本地路径。
 
-`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v0.4.2` 是要装的版本。
+`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v0.5.0` 是要装的版本。
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0
 dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 chameleon-session-delete
 ```
 
@@ -42,12 +44,12 @@ dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 cham
 **装不上，或者机器上没有 git？** `github:` 形式由本机 `git` 拉取仓库，需要机器上有 git、且能连上 github.com。改用压缩包直链就不需要 git —— pnpm 直接下载，同时也跳过 DSH 对 GitHub 的连通性预检：
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.2
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.5.0
 ```
 
-**想装默认分支上的最新代码**：`github:` 形式把 `#v0.4.2` 换成 `#main`（或整个去掉），直链把 `refs/tags/v0.4.2` 换成 `refs/heads/main`。
+**想装默认分支上的最新代码**：`github:` 形式把 `#v0.5.0` 换成 `#main`（或整个去掉），直链把 `refs/tags/v0.5.0` 换成 `refs/heads/main`。
 
-**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`（或上面那条直链）→「安装」→ 重启 DSH。
+**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0`（或上面那条直链）→「安装」→ 重启 DSH。
 
 **升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 包名不变，pnpm 会替换成新版本。
 
@@ -95,10 +97,11 @@ Client 半边（`src/client.js`）走 DSH 的声明式槽位，不做 DOM 注入
 
 ## 兼容性
 
-- **DSH 0.2.x**（Web 端与桌面端，含 0.2.0-rc.1 / 0.2.0-rc.2）：支持。`peerDependencies` 声明为 `@deepseek-ai/dsh-tools ^0.2.0-rc.1`，与 0.2.x 的兼容门禁匹配。
-- **DSH 0.1.x**：不支持。0.2.0 起 ui-primitives 的图标命名与侧栏菜单的槽位契约都已变更，v0.4.x 按 0.2.x 编写。
+- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.1-rc.2` 实测）：支持。v0.5.0 按 0.2.1 逐项核对过插件依赖的全部接口 —— 三个插槽的契约（`conversation.session.header.actions`、`sidebar.workspaces.session.menu.item`、`shell.overlay`）、`ui-primitives` 的 `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`、客户端模块加载协议（`window.__ModuleLoader__.load`）与 host 侧服务（`defineTool`、`ctx.tools.register`、`storageDomain`、`agents`、`sessions`、`webServer.register`），均与 0.2.0 一致。
+- **DSH 0.2.0-rc.x**：仍然可用（v0.5.0 的 host / client 代码与 v0.4.2 相同）。
+- **DSH 0.1.x**：不支持。0.2.0 起 ui-primitives 的图标命名与侧栏菜单的槽位契约都已变更，v0.4.x 起按 0.2.x 编写。
 
-安装时 DSH 会拿运行版本和上面的 peer 范围比对，不匹配就拒绝安装，并打印一条按版本豁免的命令（`dsh plugin allow-version ... --accept-risk`）。除非你清楚风险，否则不要豁免 —— 正确的做法是换用对应 DSH 版本的插件版本。
+兼容范围以 `engines.dsh`（`>=0.2.0-rc.1 <0.3.0`）声明，同时保留 `peerDependencies` 的 `@deepseek-ai/dsh-tools ^0.2.0-rc.1`：DSH 0.2.1 起优先按 `engines.dsh` 判定（两者同时存在时忽略 peer），更早的版本仍读 peer。不匹配时 DSH 会拒绝安装并打印一条按版本豁免的命令（`dsh plugin allow-version ... --accept-risk`）。除非你清楚风险，否则不要豁免 —— 正确的做法是换用对应 DSH 版本的插件版本。
 
 ## 常见问题
 
@@ -139,6 +142,11 @@ dsh plugin --profile <profile> add file:C:/path/to/DSH-Plugin-Session-Delete
 
 ## 更新日志
 
+- **v0.5.0（2026-10-17）**：适配 DSH 0.2.1。
+  - 兼容声明改到 0.2.1 的 `engines.dsh`（`>=0.2.0-rc.1 <0.3.0`）：0.2.1 起 DSH 优先按它判定，同时保留 `peerDependencies` 供更早版本读取。
+  - 新增插件展示元数据：`locale/zh.json` / `locale/en.json` 的 `meta.title` / `meta.description` 让插件列表显示「删除会话」与一句说明（不再是包名）；`exports` 补 `./locale/*.json`，`files` 收录 `locale/`。
+  - `dsh.client.inject` 删掉 0.2.1 已不存在的 `@deepseek-ai/dsh-client-ui-slots`：ui-slots / ui-primitives 已并入 Web 外壳的共享模块表，插件里的 `require` 依旧可用。
+  - host / client 代码未改动。按 0.2.1 逐项核对（插槽契约、`Modal` / `MenuItemButton` / 图标导出、客户端模块加载协议、host 侧服务）确认一致；同一套 18 项 host 行为测试全通过，线上实例的 session 列表端点与客户端 bundle 均正常加载。
 - **v0.4.2（2026-10-16）**：安装命令改成和其他插件一致的 `github:` 简写。
   - 主推 `dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`，并紧跟一行 `dsh --profile <profile> --dump-config` 自检（确认配置树里出现 `chameleon-session-delete`）。
   - codeload 直链降级成替代方案，并写明适用场景：本机没有 git、或连不上 github.com 时用它 —— `github:` 形式由本机 git 拉取仓库，机器上必须有 git；直链由 pnpm 直接下载，既不需要 git，也跳过 DSH 对 GitHub 的连通性预检。

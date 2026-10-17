@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Delete",
+    "description": "Delete a session from the DeepSeek Harness UI: header trash button and sidebar menu item, both behind a risk-consent dialog."
+  }
+}

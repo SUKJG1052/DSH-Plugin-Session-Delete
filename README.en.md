@@ -4,7 +4,7 @@
 
 **Delete sessions from the DeepSeek Harness UI — for real.** Archiving only hides them, and a corrupted session just won't go away. This plugin supplies the missing last step.
 
-Built for DSH **0.2.x** (the web client and the desktop app alike).
+Built for DSH **0.2.x** (the web client and the desktop app alike); this release is checked item by item against **0.2.1-rc.2**.
 
 <img width="1800" height="1020" alt="Delete-session confirmation dialog" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -23,14 +23,16 @@ Built for DSH **0.2.x** (the web client and the desktop app alike).
 
 **Bilingual**: all copy follows the UI language (the language setting or the browser language) and switches live.
 
+**Plugins page entry**: the plugin list shows the localized title "Session Delete" and a one-line description (`locale/zh.json` / `locale/en.json`) instead of the bare package name.
+
 ## Installation
 
 The plugin lives on GitHub only (it is not published to npm), and it installs like any other GitHub plugin — one command, no clone, no local path.
 
-`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v0.4.2` is the version to install.
+`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v0.5.0` is the version to install.
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0
 dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-delete is in the tree
 ```
 
@@ -42,12 +44,12 @@ dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-de
 **Install failing, or no git on the machine?** The `github:` form clones through your local `git`, so it needs git and a reachable github.com. The tarball URL needs neither — pnpm downloads it directly and DSH's GitHub reachability pre-check is skipped:
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.4.2
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.5.0
 ```
 
-**To install the latest code from the default branch**: with `github:` swap `#v0.4.2` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v0.4.2` for `refs/heads/main`.
+**To install the latest code from the default branch**: with `github:` swap `#v0.5.0` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v0.5.0` for `refs/heads/main`.
 
-**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
+**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
 
 **Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version — the package name is unchanged, so pnpm replaces the version.
 
@@ -95,10 +97,11 @@ Both endpoints are registered on `webServer`, and DSH's browser authentication (
 
 ## Compatibility
 
-- **DSH 0.2.x** (web and the desktop client, including 0.2.0-rc.1 / 0.2.0-rc.2): supported. `peerDependencies` declares `@deepseek-ai/dsh-tools ^0.2.0-rc.1`, which satisfies the 0.2.x compatibility gate.
+- **DSH 0.2.1 and later 0.2.x** (web and the desktop client; tested on `0.2.1-rc.2`): supported. v0.5.0 re-checked every interface the plugin depends on against 0.2.1 — the three slot contracts (`conversation.session.header.actions`, `sidebar.workspaces.session.menu.item`, `shell.overlay`), `ui-primitives`' `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`, the client module loading protocol (`window.__ModuleLoader__.load`) and the host services (`defineTool`, `ctx.tools.register`, `storageDomain`, `agents`, `sessions`, `webServer.register`) — and all of them are unchanged from 0.2.0.
+- **DSH 0.2.0-rc.x**: still works (the host / client code is identical to v0.4.2).
 - **DSH 0.1.x**: not supported. Since 0.2.0 the ui-primitives icon naming and the sidebar menu slot contract both changed, and v0.4.x is written against 0.2.x.
 
-At install time DSH compares the running version against that peer range and refuses the install on a mismatch, printing an exact-version exemption command (`dsh plugin allow-version ... --accept-risk`). Do not take the exemption unless you understand the risk — the right move is the plugin version that matches your DSH version.
+The supported range is declared as `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) while `peerDependencies` keeps `@deepseek-ai/dsh-tools ^0.2.0-rc.1`: DSH 0.2.1 and later judge the plugin by `engines.dsh` (and ignore the peers when it is present), while earlier versions still read the peers. On a mismatch DSH refuses the install and prints an exact-version exemption command (`dsh plugin allow-version ... --accept-risk`). Do not take the exemption unless you understand the risk — the right move is the plugin version that matches your DSH version.
 
 ## Troubleshooting
 
@@ -139,6 +142,11 @@ To check syntax before restarting, run `node --check` on a copy with an `.mjs` e
 
 ## Changelog
 
+- **v0.5.0 (2026-10-17)**: adapted to DSH 0.2.1.
+  - Compatibility moved to 0.2.1's `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) — DSH 0.2.1 and later judge by it, while `peerDependencies` stays for older runtimes.
+  - Added plugin display metadata: `locale/zh.json` / `locale/en.json` `meta.title` / `meta.description` make the plugins page show "Session Delete" and a one-line description instead of the bare package name; `exports` gained `./locale/*.json` and `files` now ships `locale/`.
+  - `dsh.client.inject` no longer lists `@deepseek-ai/dsh-client-ui-slots`, which no longer exists in 0.2.1: ui-slots / ui-primitives now live in the web shell's shared module table, so the bundle's `require` calls still resolve.
+  - No host / client code changes. Every dependency was re-checked against 0.2.1 (slot contracts, `Modal` / `MenuItemButton` / icon exports, the client module protocol, host services) and matches; the same 18 host behaviour tests pass, and on the live instance both the session-list endpoint and the client bundle load.
 - **v0.4.2 (2026-10-16)**: the install command is now the `github:` shorthand every other plugin uses.
   - Primary form: `dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.4.2`, followed by a `dsh --profile <profile> --dump-config` self-check (the `chameleon-session-delete` row must appear in the tree).
   - The codeload tarball URL became the fallback, with its actual use case spelled out: no git on the machine, or an unreachable github.com — the `github:` form clones through your local git, while the tarball URL is downloaded by pnpm directly, needs no git and skips DSH's GitHub reachability pre-check.
