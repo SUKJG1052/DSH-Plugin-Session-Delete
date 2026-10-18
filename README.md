@@ -29,10 +29,10 @@
 
 插件只发布在 GitHub 上（没有发布到 npm），装法和其他 GitHub 插件一样 —— 一行命令，不用 clone 到本地，也不用填本地路径。
 
-`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v0.5.0` 是要装的版本。
+`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v1.0.0` 是要装的版本。
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0
 dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 chameleon-session-delete
 ```
 
@@ -44,25 +44,32 @@ dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 cham
 **装不上，或者机器上没有 git？** `github:` 形式由本机 `git` 拉取仓库，需要机器上有 git、且能连上 github.com。改用压缩包直链就不需要 git —— pnpm 直接下载，同时也跳过 DSH 对 GitHub 的连通性预检：
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.5.0
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.0
 ```
 
-**想装默认分支上的最新代码**：`github:` 形式把 `#v0.5.0` 换成 `#main`（或整个去掉），直链把 `refs/tags/v0.5.0` 换成 `refs/heads/main`。
+**想装默认分支上的最新代码**：`github:` 形式把 `#v1.0.0` 换成 `#main`（或整个去掉），直链把 `refs/tags/v1.0.0` 换成 `refs/heads/main`。
 
-**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0`（或上面那条直链）→「安装」→ 重启 DSH。
+**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0`（或上面那条直链）→「安装」→ 重启 DSH。
 
-**升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 包名不变，pnpm 会替换成新版本。
+**升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 只要包名不变，pnpm 会替换成新版本。
+
+**从旧版本升级（0.5.x 及更早）**：v1.0.0 换了包名（`@huanlin/…` → `@sukjg1052/…`），要先卸旧包再装新包：
+
+```sh
+dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0
+```
 
 **卸载**
 
 ```sh
-dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
+dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 ```
 
 ## 使用
 
 - 想删会话：鼠标移到侧栏会话行 →「…」→「删除会话」，或在会话头部点垃圾桶按钮；勾选确认框后点「删除」。删除成功后客户端会重新拉取会话列表。
-- 想让 agent 删：直接说清楚要删哪个会话，agent 会调用 `workbench_session_delete`（参数 `sessionId`，`uuid` 与 `session-<uuid>` 两种写法都认）。
+- 想让 agent 删：直接说清楚要删哪个会话，agent 会调用 `workbench_session_delete`（参数 `sessionId`：裸 id 和 `session-` 前缀两种写法都认，UUID、计数器 id 与自定义 id 都能删）。
 - 删除**运行中**的会话会先停止其任务再删除，正在进行的操作会中断。
 
 ## 兼容性
@@ -80,13 +87,18 @@ dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
 | 「连接 GitHub 超时」/「无法访问 GitHub」 | DSH 对 GitHub 的连通性预检没过。改用 codeload `.tar.gz` 直链（跳过该检查）。 |
 | `github:` 形式报 git 相关错误（如 `getRepoRefs` 失败） | 机器上没有 git，或 git 不在 PATH 上。装上 git，或改用压缩包直链。 |
 | 「该插件已安装。如需升级，请卸载后重新安装」 | 界面里先卸载再装新版；命令行把版本号换成新版再 `add` 一次即可。 |
-| 「这个包没有声明组合包，无法作为插件安装」 | 装错包了 —— 本插件的包名是 `@huanlin/dsh-plugin-session-delete`。 |
+| 「这个包没有声明组合包，无法作为插件安装」 | 装错包了 —— 本插件的包名是 `@sukjg1052/dsh-plugin-session-delete`。 |
 | 桌面端 `dsh plugin --profile desktop` 报 profile 未初始化 | 先启动一次桌面端把 profile 建出来，再完全退出应用重试。 |
 | 装完界面里没有变化 | 重启 DSH（对话框会提示「已安装，下次启动后加载」）。 |
 | 插件列表显示「异常」/ 不兼容 | 版本不匹配，见上面的「兼容性」。 |
 
 ## 更新日志
 
+- **v1.0.0（2026-10-18）**：脱离 fork，成为独立维护版本。
+  - 包名由 `@huanlin/dsh-plugin-session-delete` 改为 `@sukjg1052/dsh-plugin-session-delete`（`@huanlin` 是上游的命名空间）；`cordis.patch.yml` 的行名与客户端 bundle 的注册 id 同步更新。从 0.5.x 升级需要先卸旧包再装新包（命令见「安装 → 从旧版本升级」）。
+  - 支持非 UUID 会话 id：端点与工具不再强制 UUID 形状，改为**路径安全校验**（拒绝路径分隔符、Windows 保留字符、控制字符、`.` / `..`，以及结尾的点或空格），计数器 id、自定义 id 和带不带 `session-` 前缀的写法都能删。
+  - 补 `LICENSE`（MIT，保留上游 lsz-asd 与本仓库的版权声明）；README 中的仓库身份从「fork」改为「源自上游的独立维护版本」。
+  - 其余（插槽实现、删除链路、跨站请求围栏）与 v0.5.0 相同。
 - **v0.5.0（2026-10-17）**：适配 DSH 0.2.1。
   - 兼容声明改到 0.2.1 的 `engines.dsh`（`>=0.2.0-rc.1 <0.3.0`）：0.2.1 起 DSH 优先按它判定，同时保留 `peerDependencies` 供更早版本读取。
   - 新增插件展示元数据：`locale/zh.json` / `locale/en.json` 的 `meta.title` / `meta.description` 让插件列表显示「删除会话」与一句说明（不再是包名）；`exports` 补 `./locale/*.json`，`files` 收录 `locale/`。
@@ -111,6 +123,6 @@ dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
 
 ## 许可证与致谢
 
-MIT。本仓库是 [lsz-asd/dsh-plugin-session-delete](https://github.com/lsz-asd/dsh-plugin-session-delete) 的 fork，v0.4.0 起按 DSH 0.2.x 的接口重做适配。
+MIT，完整文本见 [LICENSE](LICENSE)。本仓库源自 [lsz-asd/dsh-plugin-session-delete](https://github.com/lsz-asd/dsh-plugin-session-delete) 的初始实现，自 v0.4.0 起按 DSH 0.2.x 的接口独立维护；上游与本仓库的版权声明都保留在 LICENSE 中。
 
 [English version →](README.en.md)

@@ -10,7 +10,7 @@
 //   1. refuse while a live agent owns the session (ctx.agents.get(id));
 //   2. flush a live session so dispose-time teardown has no pending writes;
 //   3. remove the persisted log dir  ~/.dsh/sessions/<slug>/<id>/ for both id
-//      spellings (raw uuid and `session-` prefixed);
+//      spellings (bare id and `session-` prefixed);
 //   4. drop the projection-cache row (storageDomain 'session_projcache',
 //      table 'sessions');
 //   5. only after the log is confirmed gone, remove the workspace accounting
@@ -30,7 +30,26 @@ const name = 'chameleon-session-delete'
 // Only `tools` is a hard dependency; webServer is optional (see apply).
 const inject = ['tools']
 
-const SESSION_ID_RE = /^(session-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Session ids are opaque here: current DSH mints UUIDs, but counter ids and
+// custom ids exist in the wild too, and deleting them must work the same way.
+// The id is only ever used as ONE path segment under ~/.dsh/sessions/<slug>/,
+// so the rule is path safety, not a UUID shape.  Reject separators, Windows
+// reserved characters, control characters, the bare "." / ".." names, and
+// trailing dots or spaces (Windows strips those silently, so such an id could
+// never name a directory findSessionDirs would match).
+const SESSION_ID_PREFIX = 'session-'
+const MAX_SESSION_ID_LENGTH = 200
+const UNSAFE_SESSION_ID_CHARS = /[\\/:*?"<>|\u0000-\u001f]/
+
+function normalizeSessionId(value) {
+  if (typeof value !== 'string') return null
+  const id = value.trim()
+  if (id === '' || id.length > MAX_SESSION_ID_LENGTH) return null
+  if (id === '.' || id === '..') return null
+  if (UNSAFE_SESSION_ID_CHARS.test(id)) return null
+  if (id.endsWith('.') || id.endsWith(' ')) return null
+  return id
+}
 
 class DeleteError extends Error {
   constructor(message, status) {
@@ -49,18 +68,16 @@ function sessionsRoot() {
   return path.join(dshHome(), 'sessions')
 }
 
-// Session ids may appear in two spellings in different stores: the raw id
-// (`<uuid>`) and the prefixed form (`session-<uuid>`).  The on-disk JSONL
-// backend encodes the exact session id, while older/workspace/projcache rows
-// can carry either spelling.  Return every unique spelling we should clean up.
+// Session ids may appear in two spellings in different stores: the bare id and
+// the prefixed form (`session-<id>`).  The on-disk JSONL backend encodes the
+// exact session id, while older/workspace/projcache rows can carry either
+// spelling.  Return every unique spelling we should clean up, whatever shape
+// the bare id has (UUID, counter, custom).
 function sessionIdVariants(sessionId) {
-  const variants = new Set([sessionId])
-  if (sessionId.startsWith('session-')) {
-    variants.add(sessionId.slice('session-'.length))
-  } else if (SESSION_ID_RE.test(sessionId)) {
-    variants.add(`session-${sessionId}`)
-  }
-  return [...variants]
+  const bare = sessionId.startsWith(SESSION_ID_PREFIX)
+    ? sessionId.slice(SESSION_ID_PREFIX.length)
+    : sessionId
+  return bare ? [bare, `${SESSION_ID_PREFIX}${bare}`] : [sessionId]
 }
 
 // Locate ~/.dsh/sessions/<slug>/<sessionId>/ by scanning every slug dir, so
@@ -103,7 +120,7 @@ function removeSessionDirs(sessionId) {
 // workspace accounting domain. Uses the opened domain facilities (the
 // authoritative in-memory state) so the periodic flush can never re-publish a
 // stale row.  All id spellings are cleaned because projcache/workspace rows
-// may use either the raw uuid or the `session-` prefixed form.
+// may use either the bare id or the `session-` prefixed form.
 // Domain API: storageDomain.get(name) -> domain with .table(name) (KvTable:
 // get/put/delete/entries) and .global (handle with get/set).
 async function stripStorageDomains(ctx, sessionId, { workspace = true } = {}) {
@@ -230,9 +247,10 @@ function detachLiveSession(ctx, sessionId) {
   return detached
 }
 
-async function deleteSessionCore(ctx, sessionId) {
-  if (!SESSION_ID_RE.test(sessionId)) {
-    throw new DeleteError(`invalid session id: ${sessionId}`, 400)
+async function deleteSessionCore(ctx, rawSessionId) {
+  const sessionId = normalizeSessionId(rawSessionId)
+  if (sessionId === null) {
+    throw new DeleteError(`invalid session id: ${String(rawSessionId).slice(0, 80)}`, 400)
   }
   const stopped = await stopAgentIfRunning(ctx, sessionId)
   await flushSessionIfLive(ctx, sessionId)
@@ -429,7 +447,7 @@ function apply(ctx) {
       sessionId: {
         type: 'string',
         required: true,
-        description: 'The session id to delete (uuid or session-<uuid> form).',
+        description: 'The session id to delete: the bare id or its session-<id> spelling (UUIDs, counter ids and custom ids all work).',
       },
     },
     output: {

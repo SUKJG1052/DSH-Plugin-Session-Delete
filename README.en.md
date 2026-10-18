@@ -29,10 +29,10 @@ Built for DSH **0.2.x** (the web client and the desktop app alike); this release
 
 The plugin lives on GitHub only (it is not published to npm), and it installs like any other GitHub plugin — one command, no clone, no local path.
 
-`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v0.5.0` is the version to install.
+`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v1.0.0` is the version to install.
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0
 dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-delete is in the tree
 ```
 
@@ -44,25 +44,32 @@ dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-de
 **Install failing, or no git on the machine?** The `github:` form clones through your local `git`, so it needs git and a reachable github.com. The tarball URL needs neither — pnpm downloads it directly and DSH's GitHub reachability pre-check is skipped:
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v0.5.0
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.0
 ```
 
-**To install the latest code from the default branch**: with `github:` swap `#v0.5.0` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v0.5.0` for `refs/heads/main`.
+**To install the latest code from the default branch**: with `github:` swap `#v1.0.0` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v1.0.0` for `refs/heads/main`.
 
-**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v0.5.0` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
+**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
 
-**Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version — the package name is unchanged, so pnpm replaces the version.
+**Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version — as long as the package name is unchanged, pnpm replaces the version.
+
+**Upgrading from 0.5.x or earlier**: v1.0.0 renamed the package (`@huanlin/…` → `@sukjg1052/…`), so uninstall the old one first:
+
+```sh
+dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0
+```
 
 **Uninstall**
 
 ```sh
-dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
+dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 ```
 
 ## Usage
 
 - To delete a session: hover a sidebar row → "…" → "Delete session", or click the trash button in the conversation header; tick the consent box, then click Delete. The client re-fetches the session list afterwards.
-- To have an agent delete one: describe which session to delete and the agent calls `workbench_session_delete` (parameter `sessionId`; both the raw `uuid` and the `session-<uuid>` form are accepted).
+- To have an agent delete one: describe which session to delete and the agent calls `workbench_session_delete` (parameter `sessionId`: the bare id and the `session-` prefixed form both work, and UUIDs, counter ids and custom ids are all accepted).
 - Deleting a **running** session stops its task first — work in progress is interrupted.
 
 ## Compatibility
@@ -80,13 +87,18 @@ The supported range is declared as `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) while `
 | "GitHub connection timed out" / "Cannot reach GitHub" | DSH's reachability pre-check failed. Use the codeload `.tar.gz` URL (it skips that check). |
 | A git-related failure with the `github:` form (e.g. `getRepoRefs`) | There is no git on the machine, or git is not on PATH. Install git, or use the tarball URL. |
 | "This plugin is already installed. To upgrade, uninstall and reinstall" | In the UI, uninstall then install the new version; on the CLI just `add` the new version again. |
-| "This package declares no bundle, so it cannot be installed as a plugin" | Wrong package — this plugin's name is `@huanlin/dsh-plugin-session-delete`. |
+| "This package declares no bundle, so it cannot be installed as a plugin" | Wrong package — this plugin's name is `@sukjg1052/dsh-plugin-session-delete`. |
 | `dsh plugin --profile desktop` says the profile is not initialized | Launch the desktop app once to create the profile, quit it completely, then retry. |
 | Nothing changed in the UI after install | Restart DSH (the dialog says "installed, will load on next start"). |
 | The plugin list shows a failure / incompatible | Version mismatch — see Compatibility above. |
 
 ## Changelog
 
+- **v1.0.0 (2026-10-18)**: standalone release, no longer a fork.
+  - The package was renamed from `@huanlin/dsh-plugin-session-delete` to `@sukjg1052/dsh-plugin-session-delete` (`@huanlin` is the upstream namespace); the `cordis.patch.yml` row name and the client bundle's registration id follow. Upgrading from 0.5.x means uninstalling the old package first (see "Upgrading from 0.5.x or earlier").
+  - Non-UUID session ids are supported: the endpoint and the agent tool no longer require a UUID shape and validate for **path safety** instead (rejecting path separators, Windows-reserved characters, control characters, `.` / `..`, and trailing dots or spaces), so counter ids, custom ids and both `session-` spellings all work.
+  - Added `LICENSE` (MIT, keeping the upstream lsz-asd notice and this repository's notice); the README's identity changed from "fork" to "started from upstream, maintained independently".
+  - Everything else (slot implementation, delete chain, cross-site fence) is unchanged from v0.5.0.
 - **v0.5.0 (2026-10-17)**: adapted to DSH 0.2.1.
   - Compatibility moved to 0.2.1's `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) — DSH 0.2.1 and later judge by it, while `peerDependencies` stays for older runtimes.
   - Added plugin display metadata: `locale/zh.json` / `locale/en.json` `meta.title` / `meta.description` make the plugins page show "Session Delete" and a one-line description instead of the bare package name; `exports` gained `./locale/*.json` and `files` now ships `locale/`.
@@ -111,6 +123,6 @@ The supported range is declared as `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) while `
 
 ## License & credits
 
-MIT. This repository is a fork of [lsz-asd/dsh-plugin-session-delete](https://github.com/lsz-asd/dsh-plugin-session-delete); v0.4.0 reworked it against the DSH 0.2.x interfaces.
+MIT — see [LICENSE](LICENSE) for the full text. This repository started from [lsz-asd/dsh-plugin-session-delete](https://github.com/lsz-asd/dsh-plugin-session-delete) and has been maintained independently against the DSH 0.2.x interfaces since v0.4.0; both the upstream and this repository's copyright notices are kept in the LICENSE file.
 
 [← 简体中文](README.md)

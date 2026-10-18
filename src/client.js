@@ -28,7 +28,7 @@
 // receives `require` and returns the plugin's exports (apply etc.).
 // No JSX: plain React.createElement. Theme tokens only (--dsw-*).
 window.__ModuleLoader__.load({
-  id: '@huanlin/dsh-plugin-session-delete',
+  id: '@sukjg1052/dsh-plugin-session-delete',
   factory: (require) => {
     const React = require('react')
     const { useCallback, useEffect, useState } = React
