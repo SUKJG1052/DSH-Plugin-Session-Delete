@@ -29,10 +29,10 @@ Built for DSH **0.2.x** (the web client and the desktop app alike); this release
 
 The plugin lives on GitHub only (it is not published to npm), and it installs like any other GitHub plugin — one command, no clone, no local path.
 
-`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v1.0.0` is the version to install.
+`<profile>` is your profile name (`web` for the web client, `desktop` for the desktop app) and `#v1.0.1` is the version to install.
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.1
 dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-delete is in the tree
 ```
 
@@ -44,12 +44,12 @@ dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-de
 **Install failing, or no git on the machine?** The `github:` form clones through your local `git`, so it needs git and a reachable github.com. The tarball URL needs neither — pnpm downloads it directly and DSH's GitHub reachability pre-check is skipped:
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.0
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.1
 ```
 
-**To install the latest code from the default branch**: with `github:` swap `#v1.0.0` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v1.0.0` for `refs/heads/main`.
+**To install the latest code from the default branch**: with `github:` swap `#v1.0.1` for `#main` (or drop it entirely); with the tarball URL swap `refs/tags/v1.0.1` for `refs/heads/main`.
 
-**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
+**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.1` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
 
 **Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version — as long as the package name is unchanged, pnpm replaces the version.
 
@@ -57,7 +57,7 @@ dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plu
 
 ```sh
 dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.0
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.1
 ```
 
 **Uninstall**
@@ -78,7 +78,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 - **DSH 0.2.0-rc.x**: still works (the host / client code is identical to v0.4.2).
 - **DSH 0.1.x**: not supported. Since 0.2.0 the ui-primitives icon naming and the sidebar menu slot contract both changed, and v0.4.x is written against 0.2.x.
 
-The supported range is declared as `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) while `peerDependencies` keeps `@deepseek-ai/dsh-tools ^0.2.0-rc.1`: DSH 0.2.1 and later judge the plugin by `engines.dsh` (and ignore the peers when it is present), while earlier versions still read the peers. On a mismatch DSH refuses the install and prints an exact-version exemption command (`dsh plugin allow-version ... --accept-risk`). Do not take the exemption unless you understand the risk — the right move is the plugin version that matches your DSH version.
+The supported range is declared by `engines.dsh` alone (`>=0.2.0-rc.1 <0.3.0-0`, i.e. the whole 0.2.x line), which DSH 0.2.1 and later judge the plugin by. v1.0.1 drops the `peerDependencies` declaration: under npm's prerelease rules a peer range like `^0.2.0-rc.1` (upper bound `<0.3.0-0`) never matches `0.2.1-rc.2`, so the plugin market's (dshmarket) diagnostics reported a spurious incompatibility and pnpm added an unmet-peer warning to every profile operation — while the host has ignored peers since 0.2.1 anyway. On a mismatch DSH refuses the install and prints an exact-version exemption command (`dsh plugin allow-version ... --accept-risk`). Do not take the exemption unless you understand the risk — the right move is the plugin version that matches your DSH version.
 
 ## Troubleshooting
 
@@ -94,6 +94,10 @@ The supported range is declared as `engines.dsh` (`>=0.2.0-rc.1 <0.3.0`) while `
 
 ## Changelog
 
+- **v1.0.1 (2026-10-19)**: fixed a spurious peer-compatibility warning shown in the plugin market.
+  - Dropped `peerDependencies` (`@deepseek-ai/dsh-tools ^0.2.0-rc.1`). Under npm's prerelease rules `^0.2.0-rc.1` means `>=0.2.0-rc.1 <0.3.0-0`, and `0.2.1-rc.2` is admitted only when a comparator with the **same major.minor.patch tuple** itself carries a prerelease tag — none here is on `0.2.1`, so it was judged a mismatch. dshmarket's diagnostics therefore printed `peer range @deepseek-ai/dsh-tools@^0.2.0-rc.1 does not match resolved 0.2.1-rc.2`, and pnpm added an unmet-peer warning after every profile operation. Since DSH 0.2.1 already judges the plugin by `engines.dsh` and ignores a coexisting peer, removing the declaration changes no host gate — it only removes those two false alarms.
+  - Tightened the `engines.dsh` upper bound from `<0.3.0` to `<0.3.0-0`: under npm's `includePrerelease` semantics `<0.3.0` also admits `0.3.0` prereleases (e.g. `0.3.0-rc.1`), while `<0.3.0-0` is the correct "0.2.x only" bound; every 0.2.x prerelease and release still passes.
+  - The code is identical to v1.0.0; the only other changes are the version bump and this documentation.
 - **v1.0.0 (2026-10-18)**: standalone release, no longer a fork.
   - The package was renamed from `@huanlin/dsh-plugin-session-delete` to `@sukjg1052/dsh-plugin-session-delete` (`@huanlin` is the upstream namespace); the `cordis.patch.yml` row name and the client bundle's registration id follow. Upgrading from 0.5.x means uninstalling the old package first (see "Upgrading from 0.5.x or earlier").
   - Non-UUID session ids are supported: the endpoint and the agent tool no longer require a UUID shape and validate for **path safety** instead (rejecting path separators, Windows-reserved characters, control characters, `.` / `..`, and trailing dots or spaces), so counter ids, custom ids and both `session-` spellings all work.
