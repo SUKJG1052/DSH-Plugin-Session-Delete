@@ -130,3 +130,5 @@ The supported range is declared by `engines.dsh` alone (`>=0.2.0-rc.1 <0.3.0-0`,
 MIT — see [LICENSE](LICENSE) for the full text. This repository started from [lsz-asd/dsh-plugin-session-delete](https://github.com/lsz-asd/dsh-plugin-session-delete) and has been maintained independently against the DSH 0.2.x interfaces since v0.4.0; both the upstream and this repository's copyright notices are kept in the LICENSE file.
 
 [← 简体中文](README.md)
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

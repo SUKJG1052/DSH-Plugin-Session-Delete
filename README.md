@@ -130,3 +130,5 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 MIT，完整文本见 [LICENSE](LICENSE)。本仓库源自 [lsz-asd/dsh-plugin-session-delete](https://github.com/lsz-asd/dsh-plugin-session-delete) 的初始实现，自 v0.4.0 起按 DSH 0.2.x 的接口独立维护；上游与本仓库的版权声明都保留在 LICENSE 中。
 
 [English version →](README.en.md)
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
