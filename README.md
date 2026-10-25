@@ -4,7 +4,7 @@
 
 **在 DeepSeek Harness 界面里彻底删除会话。** 归档只是隐藏，损坏的会话又删不掉 —— 这个插件补上最后一步：删掉就是真的删掉。
 
-适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本按 **0.2.1-rc.2** 逐项核对验证。
+适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本按 **0.2.1-rc.3** 逐项核对验证。
 
 <img width="1800" height="1020" alt="删除会话确认弹窗" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -29,10 +29,10 @@
 
 插件只发布在 GitHub 上（没有发布到 npm），装法和其他 GitHub 插件一样 —— 一行命令，不用 clone 到本地，也不用填本地路径。
 
-`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v1.0.1` 是要装的版本。
+`<profile>` 换成你的 profile 名：Web 端是 `web`，桌面端是 `desktop`；`#v1.0.2` 是要装的版本。
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.1
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.2
 dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 chameleon-session-delete
 ```
 
@@ -44,12 +44,12 @@ dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 cham
 **装不上，或者机器上没有 git？** `github:` 形式由本机 `git` 拉取仓库，需要机器上有 git、且能连上 github.com。改用压缩包直链就不需要 git —— pnpm 直接下载，同时也跳过 DSH 对 GitHub 的连通性预检：
 
 ```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.1
+dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.2
 ```
 
-**想装默认分支上的最新代码**：`github:` 形式把 `#v1.0.1` 换成 `#main`（或整个去掉），直链把 `refs/tags/v1.0.1` 换成 `refs/heads/main`。
+**想装默认分支上的最新代码**：`github:` 形式把 `#v1.0.2` 换成 `#main`（或整个去掉），直链把 `refs/tags/v1.0.2` 换成 `refs/heads/main`。
 
-**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.1`（或上面那条直链）→「安装」→ 重启 DSH。
+**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.2`（或上面那条直链）→「安装」→ 重启 DSH。
 
 **升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 只要包名不变，pnpm 会替换成新版本。
 
@@ -57,7 +57,7 @@ dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plu
 
 ```sh
 dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.1
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.2
 ```
 
 **卸载**
@@ -74,7 +74,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 
 ## 兼容性
 
-- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.1-rc.2` 实测）：支持。v0.5.0 按 0.2.1 逐项核对过插件依赖的全部接口 —— 三个插槽的契约（`conversation.session.header.actions`、`sidebar.workspaces.session.menu.item`、`shell.overlay`）、`ui-primitives` 的 `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`、客户端模块加载协议（`window.__ModuleLoader__.load`）与 host 侧服务（`defineTool`、`ctx.tools.register`、`storageDomain`、`agents`、`sessions`、`webServer.register`），均与 0.2.0 一致。
+- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.1-rc.3` 实测）：支持。v0.5.0 按 0.2.1 逐项核对过插件依赖的全部接口 —— 三个插槽的契约（`conversation.session.header.actions`、`sidebar.workspaces.session.menu.item`、`shell.overlay`）、`ui-primitives` 的 `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`、客户端模块加载协议（`window.__ModuleLoader__.load`）与 host 侧服务（`defineTool`、`ctx.tools.register`、`storageDomain`、`agents`、`sessions`、`webServer.register`），均与 0.2.0 一致。v1.0.2 又按 0.2.1-rc.3 重新核对：`dsh.client` 声明解析（`platform` / `inject` / `external` / `immediately`）、平台基线模块表（`react`、`@deepseek-ai/dsh-client-ui-primitives`）、上述三个插槽契约、`ui-primitives` 的 `Modal` / `MenuItemButton` / `IconTrashOutlineRegular`、客户端模块加载协议与 host 服务均未变；rc.3 新增的头部 View 标签 / More 菜单（`conversation.session.header.views.actions`）与 `ui-primitives` 的增量项（`IconAppsAddOutlineRegular` / `Medium`、`MenuItemButton.current`、`Menu.minWidthFromAnchor`）不冲突。
 - **DSH 0.2.0-rc.x**：仍然可用（v0.5.0 的 host / client 代码与 v0.4.2 相同）。
 - **DSH 0.1.x**：不支持。0.2.0 起 ui-primitives 的图标命名与侧栏菜单的槽位契约都已变更，v0.4.x 起按 0.2.x 编写。
 
@@ -94,6 +94,11 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 
 ## 更新日志
 
+- **v1.0.2（2026-10-25）**：适配 DSH 0.2.1-rc.3；代码未改动。
+  - 兼容门禁：`engines.dsh`（`>=0.2.0-rc.1 <0.3.0-0`）本就覆盖 0.2.1-rc.3，实测安装、加载与门禁判定均正常。
+  - host 侧：rc.2 → rc.3 之间 `dsh-tools` / `dsh-host-webserver` / `dsh-app-boot` / `dsh-client-locale` 只变了依赖清单，`defineTool`、`ctx.tools.register`、`storageDomain`、`agents`、`sessions`、`webServer.register` 未变。
+  - 客户端侧：`dsh.client` 声明解析与客户端模块系统运行时未变（client-modules 只换了 release commit）；`react` 与 `@deepseek-ai/dsh-client-ui-primitives` 仍在平台基线模块表里；三个插槽契约未变。rc.3 的 ui-conversation 头部新增 View 标签 / More 菜单与 ui-primitives 的新增导出都是纯增量，不影响现有实现。
+  - 实测：在隔离 `DSH_HOME` 的 `web` profile 上启动 0.2.1-rc.3 实例 —— boot graph 含本插件条目（`inject` 列表正确）、客户端 bundle 经 `/plugins` 正常下发并以 `__ModuleLoader__.load` 注册、`apply` 注册三个插槽；host 工具 `workbench_session_delete` 正常注册。
 - **v1.0.1（2026-10-19）**：修复插件市场里的一条 peer 兼容误报。
   - 移除 `peerDependencies`（`@deepseek-ai/dsh-tools ^0.2.0-rc.1`）。npm 的预发布规则下，`^0.2.0-rc.1` 的上界是 `<0.3.0-0`，而 `0.2.1-rc.2` 只有在「同一 major.minor.patch 的比较项自身带预发布标记」时才会被接纳 —— 这里没有任何一项落在 `0.2.1` 上，于是判定为不匹配。插件市场 dshmarket 的诊断页因此报 `peer range @deepseek-ai/dsh-tools@^0.2.0-rc.1 does not match resolved 0.2.1-rc.2`，pnpm 每次 profile 安装操作后也会打一条 unmet peer 警告。DSH 0.2.1 起本就优先按 `engines.dsh` 判定、并忽略同时存在的 peer，所以删掉这条声明不改变宿主的兼容门禁，只是消除这两处误报。
   - `engines.dsh` 的上界从 `<0.3.0` 收紧为 `<0.3.0-0`：按 npm 的 `includePrerelease` 语义，`<0.3.0` 会接纳 `0.3.0` 的预发布版本（如 `0.3.0-rc.1`），`<0.3.0-0` 才是「只到 0.2.x」的正确上界；0.2.x 的所有预发布与正式版仍然全部通过。
