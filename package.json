@@ -1,6 +1,6 @@
 {
   "name": "@sukjg1052/dsh-plugin-session-delete",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Delete sessions of a DeepSeek Harness profile from the UI: header danger button + session-row menu item with a risk-consent dialog; host endpoint + tool delete the log, projection cache and workspace accounting. Built for DSH 0.2.x (web and the desktop client alike).",
   "type": "module",
   "license": "MIT",

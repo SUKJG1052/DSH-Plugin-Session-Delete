@@ -4,7 +4,7 @@
 
 **Delete sessions from the DeepSeek Harness UI — for real.** Archiving only hides them, and a corrupted session just won't go away. This plugin supplies the missing last step.
 
-Built for DSH **0.2.x** (the web client and the desktop app alike); the current release has been verified against **0.2.1-rc.3**.
+Built for DSH **0.2.x** (the web client and the desktop app alike); the current release has been verified against **0.2.1-rc.5**.
 
 <img width="1800" height="1020" alt="Delete-session confirmation dialog" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -72,7 +72,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 
 ## Compatibility
 
-- **DSH 0.2.1 and later 0.2.x** (web and the desktop client; tested on `0.2.1-rc.3`): supported.
+- **DSH 0.2.1 and later 0.2.x** (web and the desktop client; tested on `0.2.1-rc.5`): supported.
 - **DSH 0.2.0-rc.x**: still works (the host / client code is identical to v0.4.2).
 - **DSH 0.1.x**: not supported. Since 0.2.0 the ui-primitives icon naming and the sidebar menu slot contract both changed, and v0.4.x is written against 0.2.x.
 
@@ -80,6 +80,7 @@ The supported range is declared by `engines.dsh` alone (`>=0.2.0-rc.1 <0.3.0-0`,
 
 ## Changelog
 
+- **v1.0.3 (2026-10-30)**: adapted to DSH 0.2.1-rc.5; post-delete list refresh and session switching now use `sessions.refresh()` / `uiWorkspace.openSession()` (the old `refreshList()` / `open()` are gone); no other interface changes.
 - **v1.0.2 (2026-10-25)**: adapted to DSH 0.2.1-rc.3 (host / client interfaces and slot contracts re-checked); the code is unchanged.
 - **v1.0.1 (2026-10-19)**: dropped `peerDependencies`, removing the plugin market's spurious peer-compatibility warning; tightened the `engines.dsh` upper bound to `<0.3.0-0`.
 - **v1.0.0 (2026-10-18)**: standalone release, renamed to `@sukjg1052/dsh-plugin-session-delete`; non-UUID session ids supported; added `LICENSE`.

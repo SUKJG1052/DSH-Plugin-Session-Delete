@@ -183,6 +183,12 @@ window.__ModuleLoader__.load({
     // service even when it was not ready at plugin apply time.
     var __sessionsSvc = null
 
+    // Module-level handle to the client uiWorkspace service: it owns the current
+    // selection (mainReference) and the public navigation calls openSession() /
+    // clearMain(). DSH 0.2.1 removed the old sessions.refreshList()/open()
+    // helpers, so selection is mirrored here as well as refreshed above.
+    var __uiWorkspace = null
+
     // Module-level handle to the client locale service (LocaleRuntime): set in
     // apply() and refreshed by a deferred inject. `__t` resolves through the
     // service's lookup chain (ns -> ns.zh -> common -> key) when present, and
@@ -356,23 +362,47 @@ window.__ModuleLoader__.load({
             // Deleted. Refresh the sidebar list in place — NO page reload —
             // and if the current session was deleted, open the first
             // remaining session so the user can keep working.
+            // DSH 0.2.1: the sessions service exposes refresh() (the old
+            // refreshList() is gone); the current selection lives on the
+            // uiWorkspace service (mainReference) and sessions are opened with
+            // uiWorkspace.openSession().
             const svc = __sessionsSvc
-            const deletedCurrent = svc && svc.list
-              ? svc.list.getSnapshot().current === target.sessionId
-              : false
-            setTarget(null)
-            if (svc && typeof svc.refreshList === 'function') {
-              const done = svc.refreshList()
-              if (deletedCurrent) {
-                Promise.resolve(done).then(() => {
-                  try {
-                    const snap = svc.list.getSnapshot()
-                    const next = (snap && snap.ids || []).find((id) => id !== target.sessionId)
-                    if (next && typeof svc.open === 'function') svc.open(next)
-                  } catch { /* ignore */ }
-                })
+            const ws = __uiWorkspace
+            let deletedCurrent = false
+            try {
+              if (ws && ws.mainReference && ws.mainReference.sessionId !== undefined) {
+                deletedCurrent = ws.mainReference.sessionId === target.sessionId
+              } else if (svc && svc.list && typeof svc.list.getSnapshot === 'function') {
+                const snap = svc.list.getSnapshot()
+                deletedCurrent = snap && snap.current === target.sessionId
               }
+            } catch { /* selection unknown: keep the current view */ }
+            setTarget(null)
+            let done = null
+            try {
+              if (svc) {
+                if (typeof svc.refresh === 'function') done = svc.refresh()
+                else if (typeof svc.refreshList === 'function') done = svc.refreshList()
+              }
+            } catch { /* refresh is best-effort */ }
+            if (!deletedCurrent) return
+            const openNext = () => {
+              try {
+                const snap = svc && svc.list && typeof svc.list.getSnapshot === 'function'
+                  ? svc.list.getSnapshot()
+                  : null
+                const next = snap && Array.isArray(snap.ids)
+                  ? snap.ids.find((id) => id !== target.sessionId)
+                  : null
+                if (ws && typeof ws.openSession === 'function') {
+                  if (next) ws.openSession(next)
+                  else if (typeof ws.clearMain === 'function') ws.clearMain()
+                } else if (next && svc && typeof svc.open === 'function') {
+                  svc.open(next)
+                }
+              } catch { /* best-effort */ }
             }
+            Promise.resolve(done).then(openNext, openNext)
           })
           .catch((reason) => {
             setBusy(false)
@@ -521,14 +551,21 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
-      // The client sessions service (list store, refreshList, open) powers the
-      // dialog: title resolution and in-place list refresh after deletion.
-      // Grab it now; if it is not ready yet, a deferred inject refreshes the
-      // module-level handle and the dialog picks it up.
+      // The client sessions service (list store, refresh) powers the dialog's
+      // title resolution and in-place list refresh after deletion; uiWorkspace
+      // carries the current selection and the open/clear navigation calls.
+      // Grab them now; if a service is not ready yet, a deferred inject
+      // refreshes the module-level handle and the dialog picks it up.
       __sessionsSvc = ctx.get('sessions')
       if (!__sessionsSvc) {
         ctx.inject(['sessions'], (sub) => {
           __sessionsSvc = sub.sessions
+        })
+      }
+      __uiWorkspace = ctx.get('uiWorkspace')
+      if (!__uiWorkspace) {
+        ctx.inject(['uiWorkspace'], (sub) => {
+          __uiWorkspace = sub.uiWorkspace
         })
       }
       // The locale service drives the zh/en copy. Absent a deferred inject

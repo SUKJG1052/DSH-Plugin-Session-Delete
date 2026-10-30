@@ -4,7 +4,7 @@
 
 **在 DeepSeek Harness 界面里彻底删除会话。** 归档只是隐藏，损坏的会话又删不掉 —— 这个插件补上最后一步：删掉就是真的删掉。
 
-适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本已按 **0.2.1-rc.3** 实测验证。
+适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本已按 **0.2.1-rc.5** 实测验证。
 
 <img width="1800" height="1020" alt="删除会话确认弹窗" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -72,7 +72,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 
 ## 兼容性
 
-- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.1-rc.3` 实测）：支持。
+- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.1-rc.5` 实测）：支持。
 - **DSH 0.2.0-rc.x**：仍然可用（v0.5.0 的 host / client 代码与 v0.4.2 相同）。
 - **DSH 0.1.x**：不支持。0.2.0 起 ui-primitives 的图标命名与侧栏菜单的槽位契约都已变更，v0.4.x 起按 0.2.x 编写。
 
@@ -80,6 +80,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 
 ## 更新日志
 
+- **v1.0.3（2026-10-30）**：适配 DSH 0.2.1-rc.5；删除后的列表刷新与会话切换改用 `sessions.refresh()` / `uiWorkspace.openSession()`（旧的 `refreshList()` / `open()` 已移除），其余接口核对无变化。
 - **v1.0.2（2026-10-25）**：适配 DSH 0.2.1-rc.3（核对宿主 / 客户端接口与插槽契约），代码未改动。
 - **v1.0.1（2026-10-19）**：移除 `peerDependencies`，消除插件市场的 peer 兼容误报；`engines.dsh` 上界收紧为 `<0.3.0-0`。
 - **v1.0.0（2026-10-18）**：脱离 fork 并改名为 `@sukjg1052/dsh-plugin-session-delete`；支持非 UUID 会话 id；补 `LICENSE`。
