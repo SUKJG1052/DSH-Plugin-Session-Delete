@@ -34,29 +34,11 @@ dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1
 dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 chameleon-session-delete
 ```
 
-- 桌面端没有全局 `dsh` 命令，用应用自带的那一个：安装目录下的 `resources\runtime\cli\bin\dsh.cmd`（macOS / Linux 为 `resources/runtime/cli/bin/dsh`），参数完全一样。
-- 桌面端第一次用命令行前，先启动过一次应用（把 `desktop` profile 初始化出来），并在执行命令前完全退出它。
-- 命令必须带 `--profile`；漏了 CLI 会直接报 `required option '--profile <name>' not specified`。
-- 装完重启 profile 生效（开启 HMR 的 profile 会即时生效）。
-
-**装不上，或者机器上没有 git？** `github:` 形式由本机 `git` 拉取仓库，需要机器上有 git、且能连上 github.com。改用压缩包直链就不需要 git —— pnpm 直接下载，同时也跳过 DSH 对 GitHub 的连通性预检：
-
-```sh
-dsh plugin --profile <profile> add https://codeload.github.com/SUKJG1052/DSH-Plugin-Session-Delete/tar.gz/refs/tags/v1.0.4
-```
-
 **想装默认分支上的最新代码**：`github:` 形式把 `#v1.0.4` 换成 `#main`（或整个去掉），直链把 `refs/tags/v1.0.4` 换成 `refs/heads/main`。
 
 **在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.4`（或上面那条直链）→「安装」→ 重启 DSH。
 
 **升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 只要包名不变，pnpm 会替换成新版本。
-
-**从旧版本升级（0.5.x 及更早）**：v1.0.0 换了包名（`@huanlin/…` → `@sukjg1052/…`），要先卸旧包再装新包：
-
-```sh
-dsh plugin --profile <profile> remove @huanlin/dsh-plugin-session-delete
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.4
-```
 
 **卸载**
 
@@ -75,8 +57,6 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 - **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.2-rc.1` 实测）：支持。
 - **DSH 0.2.0-rc.x**：仍然可用（v0.5.0 的 host / client 代码与 v0.4.2 相同）。
 - **DSH 0.1.x**：不支持。0.2.0 起 ui-primitives 的图标命名与侧栏菜单的槽位契约都已变更，v0.4.x 起按 0.2.x 编写。
-
-兼容范围只以 `engines.dsh`（`>=0.2.0-rc.1 <0.3.0-0`，即 0.2.x 全系）声明 —— DSH 0.2.1 起按它判定。v1.0.1 起不再声明 `peerDependencies`：`^0.2.0-rc.1` 这样的 peer 范围在 npm 的预发布规则下匹配不到 `0.2.1-rc.2`，会让插件市场（dshmarket）的诊断页误报一条不兼容，pnpm 也会跟着打 unmet peer 警告，而 0.2.1 起宿主本来就忽略 peer。不匹配时 DSH 会拒绝安装并打印一条按版本豁免的命令（`dsh plugin allow-version ... --accept-risk`）。除非你清楚风险，否则不要豁免 —— 正确的做法是换用对应 DSH 版本的插件版本。
 
 ## 更新日志
 
