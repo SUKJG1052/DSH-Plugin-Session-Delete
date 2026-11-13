@@ -4,7 +4,7 @@
 
 **在 DeepSeek Harness 界面里彻底删除会话。** 归档只是隐藏，损坏的会话又删不掉 —— 这个插件补上最后一步：删掉就是真的删掉。
 
-适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本已按 **0.2.2-rc.1** 实测验证。
+适用于 DSH **0.2.x**（Web 端与桌面端）；当前版本已按 **0.2.2-rc.3** 实测验证。
 
 <img width="1800" height="1020" alt="删除会话确认弹窗" src="https://github.com/user-attachments/assets/c66f6185-457d-4261-9e10-1b44b9959896" />
 
@@ -30,11 +30,11 @@
 插件只发布在 GitHub 上，装法和其他 GitHub 插件一样。
 
 ```sh
-dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.4
+dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.5
 dsh --profile <profile> --dump-config   # 可选：确认配置树里出现 chameleon-session-delete
 ```
 
-**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.4`（或上面那条直链）→「安装」→ 重启 DSH。
+**在界面里装**：侧边栏 →「插件」页 →「添加插件」→ 在「包名或地址」里粘贴 `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.5`（或上面那条直链）→「安装」→ 重启 DSH。
 
 **升级**：界面里「卸载 → 再装新版」（安装对话框自己会提示：安装后暂不支持自动更新）；命令行把版本号换成新版再 `add` 一次即可 —— 只要包名不变，pnpm 会替换成新版本。
 
@@ -52,7 +52,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 
 ## 兼容性
 
-- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.2-rc.1` 实测）：支持。
+- **DSH 0.2.1 及其后的 0.2.x**（Web 端与桌面端，`0.2.2-rc.3` 实测）：支持。
 - **DSH 0.2.0-rc.x**：仍然可用（v0.5.0 的 host / client 代码与 v0.4.2 相同）。
 - **DSH 0.1.x**：不支持。0.2.0 起 ui-primitives 的图标命名与侧栏菜单的槽位契约都已变更，v0.4.x 起按 0.2.x 编写。
 
