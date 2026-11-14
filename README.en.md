@@ -2,7 +2,7 @@
 
 # dsh-plugin-session-delete
 
-**Delete sessions from the DeepSeek Harness UI — for real.** Archiving only hides them, and a corrupted session just won't go away. This plugin supplies the missing last step.
+**Delete sessions from the DeepSeek Harness UI — for real.** Archiving only hides them, and a corrupted session just won't go away. This plugin supplies the missing last step: **deletion is permanent, with no recycle bin and no undo.**
 
 Built for DSH **0.2.x** (the web client and the desktop app alike); the current release has been verified against **0.2.2-rc.3**.
 
@@ -17,9 +17,9 @@ Built for DSH **0.2.x** (the web client and the desktop app alike); the current 
 
 **Confirmation dialog**: shows the session name and id, adds a warning when the session is running, and keeps the delete button disabled until **"I understand the consequences. Confirm deletion"** is ticked.
 
-**Delete chain**: the session log, the projection cache and the workspace accounting are removed together, through the live storageDomain, so in-memory state and on-disk units stay consistent — a later flush cannot resurrect the session.
+**Delete chain**: the session log, the projection cache and the workspace accounting (ownership plus the pin and archive sets) are removed together, through the live storageDomain / workspaceRegistry services, so in-memory state and on-disk units stay consistent — a later flush cannot resurrect the session. The session's local spill files are removed too, along with attachment objects that **only this session referenced** (objects still referenced by another session are kept); the session's composer draft and panel state in the client are cleared as well, including per-session keys written by other plugins such as `dsh-sidebar:v1:<id>`.
 
-**Agent tool**: `workbench_session_delete`, so agents can delete sessions too.
+**Agent tools**: `workbench_session_delete` lets agents delete sessions; `workbench_session_gc` cleans up residue (ghost workspace references, projection rows without a log, empty directories, optionally attachments) and defaults to a dry run.
 
 **Bilingual**: all copy follows the UI language (the language setting or the browser language) and switches live.
 
@@ -34,7 +34,7 @@ dsh plugin --profile <profile> add github:SUKJG1052/DSH-Plugin-Session-Delete#v1
 dsh --profile <profile> --dump-config   # optional: confirm chameleon-session-delete is in the tree
 ```
 
-**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.5` (or the tarball URL) into "Package name or URL" → "Install" → restart DSH.
+**Install from the UI**: Sidebar → "Plugins" page → "Add plugin" → paste `github:SUKJG1052/DSH-Plugin-Session-Delete#v1.0.5` into "Package name or URL" → "Install" → restart DSH.
 
 **Upgrading**: in the UI, uninstall and install the new version (the install dialog says so itself: there is no automatic update yet); on the command line, run `add` again with the new version — as long as the package name is unchanged, pnpm replaces the version.
 
@@ -49,6 +49,7 @@ dsh plugin --profile <profile> remove @sukjg1052/dsh-plugin-session-delete
 - To delete a session: hover a sidebar row → "…" → "Delete session", or click the trash button in the conversation header; tick the consent box, then click Delete. The client re-fetches the session list afterwards.
 - To have an agent delete one: describe which session to delete and the agent calls `workbench_session_delete` (parameter `sessionId`: the bare id and the `session-` prefixed form both work, and UUIDs, counter ids and custom ids are all accepted).
 - Deleting a **running** session stops its task first — work in progress is interrupted.
+- Ghost records left by older plugin versions or by hand-deleting logs are swept automatically on the next DSH start (including per-session localStorage keys written by other plugins, e.g. `dsh-sidebar:v1:<id>`); orphaned attachments need `workbench_session_gc` (dry run first, then `dryRun: false` with `attachments: true`).
 
 ## Compatibility
 

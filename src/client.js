@@ -62,6 +62,152 @@ window.__ModuleLoader__.load({
 
     const NS = 'session-delete'
 
+    // --- client-side session state cleanup --------------------------------------
+    // The browser half of DSH persists per-session UI state in localStorage:
+    //   dsh.conversation.session-<id>             composer draft (core UI)
+    //   dsh.sidebar-right.v1.session-<id>         right sidebar state (better-sidebar)
+    //   dsh.user-questions.drafts.v1.session-<id> pending question drafts
+    //   dsh-sidebar:v1:session-<id>               bottom workbench layout
+    //                                             (dsh-better-sidebar; a COLON
+    //                                             namespace, not a dotted one)
+    //   dsh.genui.interaction                     JSON map keyed by
+    //                                             "f:session-<id>:dom:..." entries
+    // Deleting a session on the host cannot reach these, so the dialog removes
+    // them on a successful delete and apply() sweeps keys whose session no
+    // longer exists (older deletions / hand cleanup).
+    //
+    // The sweep matches ANY localStorage key that ends in `session-<uuid>`, so a
+    // per-session key from another plugin is covered without listing its
+    // namespace here: `dsh-sidebar:v1:session-<id>` was missed by the earlier
+    // `dsh.`-only pattern and survived every deleted session's cleanup.
+    const LS_SESSION_KEY_RE = /^(?:.*[.:])?session-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+    const GENUI_KEY = 'dsh.genui.interaction'
+    const CURRENT_SESSION_KEY = 'dsh.sessions.current'
+    const SESSION_ID_IN_TEXT_RE = /session-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+
+    function localStorageOrNull() {
+      try {
+        return typeof window !== 'undefined' && window.localStorage ? window.localStorage : null
+      } catch {
+        return null
+      }
+    }
+
+    function bareSessionId(value) {
+      return String(value || '').replace(/^session-/, '')
+    }
+
+    function listStorageKeys(store) {
+      const keys = []
+      try {
+        for (let i = 0; i < store.length; i += 1) {
+          const key = store.key(i)
+          if (typeof key === 'string') keys.push(key)
+        }
+      } catch { /* storage unavailable: nothing to list */ }
+      return keys
+    }
+
+    // Drop every localStorage entry that names one session id (draft, sidebar
+    // state, question drafts, current pointer) and strip that session from the
+    // genui interaction map. Returns the number of removed keys.
+    function clearClientSessionState(rawSessionId) {
+      const store = localStorageOrNull()
+      const bare = bareSessionId(rawSessionId)
+      if (!store || !bare) return 0
+      let removed = 0
+      for (const key of listStorageKeys(store)) {
+        if (key.indexOf(bare) >= 0) {
+          try { store.removeItem(key); removed += 1 } catch { /* keep going */ }
+        }
+      }
+      try {
+        const raw = store.getItem(GENUI_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          let changed = false
+          if (Array.isArray(parsed.order)) {
+            const order = parsed.order.filter((entry) => !(typeof entry === 'string' && entry.indexOf(bare) >= 0))
+            if (order.length !== parsed.order.length) { parsed.order = order; changed = true }
+          }
+          for (const key of Object.keys(parsed)) {
+            if (key !== 'order' && key.indexOf(bare) >= 0) { delete parsed[key]; changed = true }
+          }
+          if (changed) store.setItem(GENUI_KEY, JSON.stringify(parsed))
+        }
+      } catch { /* malformed or foreign value: leave it */ }
+      try {
+        const current = store.getItem(CURRENT_SESSION_KEY)
+        if (current && current.indexOf(bare) >= 0) { store.removeItem(CURRENT_SESSION_KEY); removed += 1 }
+      } catch { /* ignore */ }
+      return removed
+    }
+
+    // Remove per-session localStorage entries whose session is not in the live
+    // session list any more. `sessions` is the host list payload (each item has
+    // sessionId); an empty list is never treated as "everything is gone".
+    function sweepStaleClientState(sessions) {
+      const store = localStorageOrNull()
+      if (!store || !Array.isArray(sessions) || sessions.length === 0) return 0
+      const live = {}
+      for (const item of sessions) {
+        if (item && typeof item.sessionId === 'string') live[bareSessionId(item.sessionId)] = true
+      }
+      let removed = 0
+      for (const key of listStorageKeys(store)) {
+        const match = LS_SESSION_KEY_RE.exec(key)
+        if (match && !live[match[1]]) {
+          try { store.removeItem(key); removed += 1 } catch { /* keep going */ }
+        }
+      }
+      try {
+        const raw = store.getItem(GENUI_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          let changed = false
+          const keep = (entry) => {
+            if (typeof entry !== 'string') return true
+            const match = SESSION_ID_IN_TEXT_RE.exec(entry)
+            return !match || !!live[match[1]]
+          }
+          if (Array.isArray(parsed.order)) {
+            const order = parsed.order.filter(keep)
+            if (order.length !== parsed.order.length) { parsed.order = order; changed = true }
+          }
+          for (const key of Object.keys(parsed)) {
+            if (key === 'order') continue
+            if (!keep(key)) { delete parsed[key]; changed = true }
+          }
+          if (changed) store.setItem(GENUI_KEY, JSON.stringify(parsed))
+        }
+      } catch { /* malformed value: leave it */ }
+      try {
+        const current = store.getItem(CURRENT_SESSION_KEY)
+        if (current) {
+          const match = SESSION_ID_IN_TEXT_RE.exec(current)
+          if (match && !live[match[1]]) { store.removeItem(CURRENT_SESSION_KEY); removed += 1 }
+        }
+      } catch { /* ignore */ }
+      return removed
+    }
+
+    // One delayed sweep per page load (never blocks the UI). A failed host call
+    // keeps the client state untouched — deletion of drafts is only based on an
+    // authoritative, non-empty session list.
+    function scheduleStaleClientStateSweep() {
+      if (typeof setTimeout !== 'function') return
+      setTimeout(() => {
+        try {
+          Promise.resolve(fetch('/__chameleon/session/list'))
+            .then((response) => (response && response.ok ? response.json() : null))
+            .then((data) => {
+              if (data && data.ok && Array.isArray(data.sessions)) sweepStaleClientState(data.sessions)
+            })
+            .catch(() => { /* host unavailable: keep client state */ })
+        } catch { /* fetch unavailable */ }
+      }, 4000)
+    }
+
     const zhDict = {
       'dialog.title': '删除会话',
       'dialog.cancel': '取消',
@@ -75,7 +221,7 @@ window.__ModuleLoader__.load({
       'dialog.ack': '我已了解后果，确认删除',
       'dialog.notFoundDesc': '未能在会话列表中找到该会话（可能已被删除或列表尚未刷新），请刷新后重试。',
       'dialog.runningDesc': '该会话正在运行，删除会立即停止其任务并永久删除，正在进行的操作将中断且无法恢复。',
-      'dialog.deleteDesc': '将永久删除该会话及其全部对话记录（会话日志、统计与工作区记账），此操作不可恢复。',
+      'dialog.deleteDesc': '将永久删除该会话及其本地记录（会话日志、投影缓存、工作区记账，以及本机临时文件与不再被其它会话引用的附件）；此操作不可恢复。',
       'button.title': '删除会话',
       'button.titleRunning': '删除会话（运行中，删除将停止任务）',
       'menu.delete': '删除会话',
@@ -94,7 +240,7 @@ window.__ModuleLoader__.load({
       'dialog.ack': 'I understand the consequences. Confirm deletion',
       'dialog.notFoundDesc': 'Could not find this session in the session list (it may have been deleted or the list has not refreshed yet). Please refresh and try again.',
       'dialog.runningDesc': 'This session is running. Deleting it will stop its task immediately and remove it permanently; any work in progress will be interrupted and cannot be recovered.',
-      'dialog.deleteDesc': 'This will permanently delete the session and all of its conversation records (session log, statistics and workspace accounting). This action cannot be undone.',
+      'dialog.deleteDesc': 'This will permanently delete the session and its local records (session log, projection cache, workspace accounting, this session\'s temporary files and attachments no other session still references). This action cannot be undone.',
       'button.title': 'Delete session',
       'button.titleRunning': 'Delete session (running — deleting will stop the task)',
       'menu.delete': 'Delete session',
@@ -378,6 +524,10 @@ window.__ModuleLoader__.load({
               }
             } catch { /* selection unknown: keep the current view */ }
             setTarget(null)
+            // Local UI state (composer draft, sidebar/genui entries, current
+            // pointer) lives in localStorage and would otherwise outlive the
+            // host-side deletion; remove it now that the host confirmed.
+            try { clearClientSessionState(target.sessionId) } catch { /* best-effort */ }
             let done = null
             try {
               if (svc) {
@@ -600,9 +750,16 @@ window.__ModuleLoader__.load({
         order: SIDEBAR_MENU_ORDER,
         ...(__locale ? { locale: NS } : {}),
       }, SidebarDeleteMenuItem))
+
+      // Delayed once-per-load sweep: drop localStorage entries of sessions that
+      // no longer exist on the host (deleted by an older plugin version, by hand,
+      // or in another window).
+      scheduleStaleClientStateSweep()
     }
 
-    // The loader gates apply() until the declared services exist.
-    return { apply, inject: ['slots'] }
+    // The loader gates apply() until the declared services exist. `__test` is a
+    // test-only hook (ignored by the loader) so the bundle's storage helpers can
+    // be exercised from the maintenance harness.
+    return { apply, inject: ['slots'], __test: { clearClientSessionState, sweepStaleClientState } }
   },
 })
