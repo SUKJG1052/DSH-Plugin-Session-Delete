@@ -212,24 +212,41 @@ function decodeSessionLog(buf) {
   return { text: Buffer.concat(parts).toString('utf8'), complete: true }
 }
 
-/** Read every persisted log generation of one session dir (best-effort). */
+/**
+ * Read every persisted log generation of one session dir (best-effort).
+ *
+ * Returns `null` ONLY when the directory holds no log generation at all (a
+ * session with no content yet).  A generation that could not be read in full —
+ * unreadable file, or one above MAX_LOG_BYTES — keeps the result but marks
+ * `complete: false`: "we saw part of this session" must never be reported as
+ * "this session references nothing", or the attachment GC would treat a blob
+ * that only this session uses as unreferenced and delete it.
+ */
 function readLogTextFromDir(dir) {
   const chunks = []
   let complete = true
+  let sawLog = false
   for (const entry of readDirSafe(dir)) {
     if (!entry.isFile() || !/\.jsonl(\.zstd)?$/.test(entry.name)) continue
+    sawLog = true
     let buf
     try {
       buf = fs.readFileSync(path.join(dir, entry.name))
     } catch {
+      // Unknown content: partial scan, not an empty one.
+      complete = false
       continue
     }
-    if (buf.length > MAX_LOG_BYTES) return null
+    if (buf.length > MAX_LOG_BYTES) {
+      // Too large to decode within the budget: partial scan (see above).
+      complete = false
+      continue
+    }
     const decoded = decodeSessionLog(buf)
     chunks.push(decoded.text)
     if (!decoded.complete) complete = false
   }
-  return chunks.length > 0 ? { text: chunks.join('\n'), complete } : null
+  return sawLog ? { text: chunks.join('\n'), complete } : null
 }
 
 /** The attachment references (`sha256:<64 hex>`) carried by a session's own log. */
@@ -582,7 +599,14 @@ async function cleanupWorkspaceAccounting(ctx, sessionId) {
 async function stopAgentIfRunning(ctx, sessionId) {
   const agents = ctx.get('agents')
   if (!agents || typeof agents.get !== 'function') return false
-  const agent = agents.get(sessionId)
+  // The live agent registry is keyed like the session store, so look the id up
+  // under both spellings — a session whose agent is only registered as
+  // `session-<id>` must still be cancelled before its log disappears.
+  let agent
+  for (const variant of sessionIdVariants(sessionId)) {
+    try { agent = agents.get(variant) } catch { agent = undefined }
+    if (agent) break
+  }
   if (!agent) return false
   if (typeof agent.cancel === 'function') {
     try { agent.cancel({ kind: 'user' }) } catch { /* agent may already be settling */ }
@@ -932,16 +956,40 @@ function sendJson(res, status, obj) {
   res.end(body)
 }
 
+// The only accepted body is `{"sessionId": "..."}`; cap it so a stray client
+// cannot make the host buffer an unbounded stream.
+const MAX_BODY_BYTES = 64 * 1024
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = ''
-    req.on('data', (d) => {
-      data += d
-      if (data.length > 1e6) req.destroy()
+    let settled = false
+    const fail = (reason) => {
+      if (settled) return
+      settled = true
+      reject(reason)
+    }
+    req.on('data', (chunk) => {
+      if (settled) return
+      data += chunk
+      if (data.length > MAX_BODY_BYTES) {
+        // Settle BEFORE the caller can answer: `req.destroy()` without an error
+        // emits neither 'end' nor 'error', so a promise left pending here would
+        // hang the request handler forever.  Stop the flow instead of destroying
+        // the socket, so the caller can still write a 413 and close cleanly.
+        const tooLarge = new Error('request body too large')
+        tooLarge.status = 413
+        fail(tooLarge)
+        if (typeof req.pause === 'function') req.pause()
+      }
     })
-    req.on('end', () => resolve(data))
-    req.on('error', reject)
-    req.on('aborted', () => reject(new Error('aborted')))
+    req.on('end', () => {
+      if (settled) return
+      settled = true
+      resolve(data)
+    })
+    req.on('error', fail)
+    req.on('aborted', () => fail(new Error('aborted')))
   })
 }
 
@@ -1013,7 +1061,14 @@ function apply(ctx) {
         try {
           const body = await readBody(req)
           if (body) args = JSON.parse(body)
-        } catch {
+        } catch (e) {
+          if (e && e.status === 413) {
+            // The body was abandoned mid-stream: answer, then drop the socket so
+            // the rest of an oversized upload is not read.
+            sendJson(res, 413, { error: 'request body too large' })
+            req.destroy()
+            return
+          }
           sendJson(res, 400, { error: 'bad json body' })
           return
         }

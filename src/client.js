@@ -97,6 +97,31 @@ window.__ModuleLoader__.load({
       return String(value || '').replace(/^session-/, '')
     }
 
+    function escapeRegExp(text) {
+      return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+
+    // Match ONE session by name, for the id shapes the host accepts (UUIDs,
+    // counter ids and custom ids alike).
+    //
+    // A session key always ENDS with the name (`dsh.conversation.session-<id>`,
+    // `dsh-sidebar:v1:session-<id>`), so keys are matched on that anchored
+    // suffix.  Values (the genui map's `f:session-<id>:dom:...` entries, the
+    // current-session pointer) may embed the name, so they match the whole
+    // `session-<id>` token and stop at the id boundary.
+    //
+    // Matching a raw substring (`key.indexOf(bare) >= 0`, the earlier rule) is
+    // destructive for short/custom ids: deleting session "1" removed every
+    // localStorage entry of the whole app that happened to contain a "1".
+    function sessionIdMatcher(bare) {
+      const suffix = 'session-' + String(bare).toLowerCase()
+      const token = new RegExp('session-' + escapeRegExp(bare) + '(?![0-9a-z_-])', 'i')
+      return {
+        key: (key) => typeof key === 'string' && key.toLowerCase().endsWith(suffix),
+        value: (text) => typeof text === 'string' && token.test(text),
+      }
+    }
+
     function listStorageKeys(store) {
       const keys = []
       try {
@@ -115,9 +140,10 @@ window.__ModuleLoader__.load({
       const store = localStorageOrNull()
       const bare = bareSessionId(rawSessionId)
       if (!store || !bare) return 0
+      const match = sessionIdMatcher(bare)
       let removed = 0
       for (const key of listStorageKeys(store)) {
-        if (key.indexOf(bare) >= 0) {
+        if (match.key(key)) {
           try { store.removeItem(key); removed += 1 } catch { /* keep going */ }
         }
       }
@@ -127,18 +153,18 @@ window.__ModuleLoader__.load({
           const parsed = JSON.parse(raw)
           let changed = false
           if (Array.isArray(parsed.order)) {
-            const order = parsed.order.filter((entry) => !(typeof entry === 'string' && entry.indexOf(bare) >= 0))
+            const order = parsed.order.filter((entry) => !match.value(entry))
             if (order.length !== parsed.order.length) { parsed.order = order; changed = true }
           }
           for (const key of Object.keys(parsed)) {
-            if (key !== 'order' && key.indexOf(bare) >= 0) { delete parsed[key]; changed = true }
+            if (key !== 'order' && match.value(key)) { delete parsed[key]; changed = true }
           }
           if (changed) store.setItem(GENUI_KEY, JSON.stringify(parsed))
         }
       } catch { /* malformed or foreign value: leave it */ }
       try {
         const current = store.getItem(CURRENT_SESSION_KEY)
-        if (current && current.indexOf(bare) >= 0) { store.removeItem(CURRENT_SESSION_KEY); removed += 1 }
+        if (current && match.value(current)) { store.removeItem(CURRENT_SESSION_KEY); removed += 1 }
       } catch { /* ignore */ }
       return removed
     }
